@@ -1,0 +1,29 @@
+# Environment files (NEVER commit real values)
+.Renviron
+.Renviron.prod
+.Renviron.test
+.env
+*.env
+
+# Keep the example template
+!.Renviron.example
+
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user/
+
+# SSMS / Visual Studio user files
+.vs/
+*.ssmssln
+*.ssmssqlproj
+*.suo
+*.user
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log

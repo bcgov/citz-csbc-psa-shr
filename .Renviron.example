@@ -1,0 +1,9 @@
+# PeopleSoft API Configuration
+# Copy this file to .Renviron.prod or .Renviron.test
+# and fill in actual values. NEVER commit real values.
+
+PSA_API_BASE_URL=https://<server-name>/apiserver/api.rsc/
+PSA_SQL_SERVER=<sql-server-hostname>
+PSA_SQL_DATABASE=<database-name>
+PSA_PROXY_HOST=<proxy-ip>
+PSA_PROXY_PORT=8080

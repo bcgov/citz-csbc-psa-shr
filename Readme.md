@@ -1,0 +1,56 @@
+# PeopleSoft HR Data Integration
+
+## Description
+
+A standardized data integration pipeline for ingesting BC Public Service
+Agency (PSA) PeopleSoft Analytics API data into SQL Server, with
+enterprise-grade change detection, auditing, and soft-delete support.
+
+This project implements a **staging ??? merge ??? audit** pattern that:
+
+- Calls PeopleSoft OData APIs (Basic Auth, paginated)
+- Normalizes JSON responses (handles empty objects `{}` ??? `NULL`)
+- Loads data into SQL Server staging tables
+- Executes a `MERGE` stored procedure with:
+  - Row-count guardrails (prevents accidental mass deletes)
+  - Soft deletes (`IsActive` flag instead of physical deletes)
+  - Reactivation detection
+  - Full before/after audit trail via `MERGE . OUTPUT`
+
+The pattern is designed to be **reusable across multiple PSA API
+endpoints** with minimal configuration changes.
+
+## Features
+
+- **R-based ETL** using `httr2`, `jsonlite`, `DBI`, `odbc`, `dplyr`
+- **OData pagination** support (handles `@odata.nextLink`)
+- **Environment-based configuration** (no secrets in code)
+- **TEST / PROD environment switching** via environment variable
+- **SQL Server stored procedures** with guardrails and audit logging
+- **Standardized reporting SQL** for daily operations, audit, and ad-hoc
+  analysis
+
+## Directory Structure
+
+```text
+PeopleSoftAPI/
+????????? scripts/
+???   ????????? psa_dept_org_levels_etl.R        # R ETL script
+???
+????????? Dept_Org_Levels/
+???   ????????? ddl/
+???   ???   ????????? 01_stage_table.sql           # Staging table DDL
+???   ???   ????????? 02_target_table.sql          # Target table DDL
+???   ???   ????????? 03_audit_table.sql           # Audit table DDL
+???   ???   ????????? 04_merge_proc.sql            # MERGE stored procedure
+???   ???
+???   ????????? reporting/
+???       ????????? daily/                       # Current-state reports
+???       ????????? audit/                       # Historical / trend reports
+???       ????????? ad_hoc/                      # Investigation queries
+???
+????????? .gitignore
+????????? CODE_OF_CONDUCT.md
+????????? CONTRIBUTING.md
+????????? LICENSE
+????????? README.md
