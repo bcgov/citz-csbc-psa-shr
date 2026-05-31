@@ -1,0 +1,452 @@
+{
+  "api_name": "Datamart_CITZ_Report_TimeInPositionEmployee",
+  "discovered": "2026-05-31 02:39:04 PDT",
+  "environment": "PROD",
+  "total_rows": 18551,
+  "total_columns": 55,
+  "single_column_analysis": {
+    "Accumulated_Years_in_Positions": {
+      "column": "Accumulated_Years_in_Positions",
+      "distinct_count": 12637,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 68.1
+    },
+    "Age_at_Entry": {
+      "column": "Age_at_Entry",
+      "distinct_count": 9457,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 51
+    },
+    "Age_at_Exit": {
+      "column": "Age_at_Exit",
+      "distinct_count": 9651,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 52
+    },
+    "Birthdate": {
+      "column": "Birthdate",
+      "distinct_count": 2523,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 13.6
+    },
+    "ClassificationGroup_at_Entry": {
+      "column": "ClassificationGroup_at_Entry",
+      "distinct_count": 11,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "core": {
+      "column": "core",
+      "distinct_count": 2,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Current_Appt_Stat": {
+      "column": "Current_Appt_Stat",
+      "distinct_count": 4,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Current_Base": {
+      "column": "Current_Base",
+      "distinct_count": 2628,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 14.2
+    },
+    "Current_Dept_Descr": {
+      "column": "Current_Dept_Descr",
+      "distinct_count": 222,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "Current_DeptID": {
+      "column": "Current_DeptID",
+      "distinct_count": 222,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "Current_Job_Function": {
+      "column": "Current_Job_Function",
+      "distinct_count": 17,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Current_Jobcode": {
+      "column": "Current_Jobcode",
+      "distinct_count": 95,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "Current_Jobcode_Descr": {
+      "column": "Current_Jobcode_Descr",
+      "distinct_count": 89,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "Current_or_Historical": {
+      "column": "Current_or_Historical",
+      "distinct_count": 3,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Current_Organization": {
+      "column": "Current_Organization",
+      "distinct_count": 1,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Current_Position": {
+      "column": "Current_Position",
+      "distinct_count": 2702,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 14.6
+    },
+    "Current_Program": {
+      "column": "Current_Program",
+      "distinct_count": 13,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Current_Program_Branch": {
+      "column": "Current_Program_Branch",
+      "distinct_count": 214,
+      "total_rows": 18551,
+      "null_count": 13,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "Current_Program_Division": {
+      "column": "Current_Program_Division",
+      "distinct_count": 69,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Current_Status": {
+      "column": "Current_Status",
+      "distinct_count": 4,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Days_in_Position": {
+      "column": "Days_in_Position",
+      "distinct_count": 2519,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 13.6
+    },
+    "Department": {
+      "column": "Department",
+      "distinct_count": 1873,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 10.1
+    },
+    "DEPTID": {
+      "column": "DEPTID",
+      "distinct_count": 1918,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 10.3
+    },
+    "Employee_Name": {
+      "column": "Employee_Name",
+      "distinct_count": 2759,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 14.9
+    },
+    "Employee_Rcd": {
+      "column": "Employee_Rcd",
+      "distinct_count": 2,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "EmployeeID": {
+      "column": "EmployeeID",
+      "distinct_count": 2764,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 14.9
+    },
+    "Entry_Action": {
+      "column": "Entry_Action",
+      "distinct_count": 12,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Entry_Date": {
+      "column": "Entry_Date",
+      "distinct_count": 4963,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 26.8
+    },
+    "Entry_Reason": {
+      "column": "Entry_Reason",
+      "distinct_count": 57,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "Entry_Reason_Descr": {
+      "column": "Entry_Reason_Descr",
+      "distinct_count": 67,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Entry_Rownumber": {
+      "column": "Entry_Rownumber",
+      "distinct_count": 137,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.7
+    },
+    "Entry_Seq": {
+      "column": "Entry_Seq",
+      "distinct_count": 6,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Entry_Std_Hours": {
+      "column": "Entry_Std_Hours",
+      "distinct_count": 41,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Exit_Action": {
+      "column": "Exit_Action",
+      "distinct_count": 12,
+      "total_rows": 18551,
+      "null_count": 2764,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Exit_Date": {
+      "column": "Exit_Date",
+      "distinct_count": 4627,
+      "total_rows": 18551,
+      "null_count": 2764,
+      "is_unique": false,
+      "pct": 24.9
+    },
+    "Exit_Reason": {
+      "column": "Exit_Reason",
+      "distinct_count": 70,
+      "total_rows": 18551,
+      "null_count": 2764,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Exit_Reason_Descr": {
+      "column": "Exit_Reason_Descr",
+      "distinct_count": 72,
+      "total_rows": 18551,
+      "null_count": 2764,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Exit_Seq": {
+      "column": "Exit_Seq",
+      "distinct_count": 6,
+      "total_rows": 18551,
+      "null_count": 2764,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Exit_Std_Hours": {
+      "column": "Exit_Std_Hours",
+      "distinct_count": 35,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "First_Date_In_Position": {
+      "column": "First_Date_In_Position",
+      "distinct_count": 3606,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 19.4
+    },
+    "Incumbent_Count_After_Entry": {
+      "column": "Incumbent_Count_After_Entry",
+      "distinct_count": 41,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Job_Code_at_Entry": {
+      "column": "Job_Code_at_Entry",
+      "distinct_count": 313,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.7
+    },
+    "JobCodeDesc_at_Entry": {
+      "column": "JobCodeDesc_at_Entry",
+      "distinct_count": 274,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.5
+    },
+    "JobCodeDescGroup_at_Entry": {
+      "column": "JobCodeDescGroup_at_Entry",
+      "distinct_count": 107,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.6
+    },
+    "Level1": {
+      "column": "Level1",
+      "distinct_count": 259,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 1.4
+    },
+    "Level2": {
+      "column": "Level2",
+      "distinct_count": 841,
+      "total_rows": 18551,
+      "null_count": 87,
+      "is_unique": false,
+      "pct": 4.5
+    },
+    "Level3": {
+      "column": "Level3",
+      "distinct_count": 1193,
+      "total_rows": 18551,
+      "null_count": 1610,
+      "is_unique": false,
+      "pct": 6.4
+    },
+    "Organization": {
+      "column": "Organization",
+      "distinct_count": 37,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Position": {
+      "column": "Position",
+      "distinct_count": 7800,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 42
+    },
+    "Position_Current_ClassificationGroup": {
+      "column": "Position_Current_ClassificationGroup",
+      "distinct_count": 11,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Position_Current_Job_Code": {
+      "column": "Position_Current_Job_Code",
+      "distinct_count": 264,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.4
+    },
+    "Position_Current_JobCodeDesc": {
+      "column": "Position_Current_JobCodeDesc",
+      "distinct_count": 229,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "Position_Current_JobCodeDescGroup": {
+      "column": "Position_Current_JobCodeDescGroup",
+      "distinct_count": 106,
+      "total_rows": 18551,
+      "null_count": 21,
+      "is_unique": false,
+      "pct": 0.6
+    },
+    "Position_Title": {
+      "column": "Position_Title",
+      "distinct_count": 3362,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 18.1
+    },
+    "Years_in_Position": {
+      "column": "Years_in_Position",
+      "distinct_count": 3201,
+      "total_rows": 18551,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 17.3
+    }
+  },
+  "unique_single_columns": [],
+  "composite_keys_found": [],
+  "recommendation": "No natural key found"
+}
