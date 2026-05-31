@@ -16,3 +16,4 @@ applyTo: "**/*.R"
 - Always include Apache 2.0 license header
 - Always call `dbDisconnect(con)` at end of script
 - Use `dbExecute()` for DDL/DML, `dbGetQuery()` for SELECT
+- Use `Sys.sleep(0.2)` between paginated API calls (polite pacing)

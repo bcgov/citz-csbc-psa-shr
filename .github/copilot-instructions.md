@@ -15,3 +15,17 @@ Use it as the reference implementation for all new APIs.
 
 ## Folder Structure (per API)
 Each API lives in its own folder named exactly after the API:
+
+```text
+PeopleSoftAPI/<exact_api_name>/
+├── ddl/
+│   ├── 01_stage.sql
+│   ├── 02_target.sql
+│   ├── 03_audit.sql
+│   └── 04_merge_proc.sql
+├── reporting/
+│   ├── daily/
+│   ├── audit/
+│   └── ad_hoc/
+└── schemas/
+    └── <api_name>_schema.json
