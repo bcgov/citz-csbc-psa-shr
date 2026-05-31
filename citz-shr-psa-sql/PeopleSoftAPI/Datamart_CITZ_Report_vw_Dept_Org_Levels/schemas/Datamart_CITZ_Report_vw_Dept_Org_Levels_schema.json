@@ -1,0 +1,19 @@
+{
+  "@odata.context": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_vw_Dept_Org_Levels",
+  "value": [
+    {
+      "DepartmentID": "002-0006",
+      "Level1": "MLA'S",
+      "Level1Key": 14124,
+      "Level2": {},
+      "Level2Key": {},
+      "Level3": {},
+      "Level3Key": {},
+      "Level4": {},
+      "Level4Key": {},
+      "Level5": {},
+      "Level5Key": {},
+      "Organization": "Legislation"
+    }
+  ]
+}

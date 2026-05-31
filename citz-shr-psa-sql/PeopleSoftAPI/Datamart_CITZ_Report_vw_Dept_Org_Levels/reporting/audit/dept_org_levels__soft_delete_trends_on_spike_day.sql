@@ -4,6 +4,7 @@ SELECT
     DepartmentID,
     OldOrganization,
     OldLevel1, OldLevel2, OldLevel3,
+	ActionType,
     AuditDtmUtc,
     RunId
 FROM dbo.PeopleSoft_Dept_Org_Levels_Audit
