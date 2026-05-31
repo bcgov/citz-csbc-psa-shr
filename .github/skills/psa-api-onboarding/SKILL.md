@@ -1042,4 +1042,82 @@ Business key enforced in target
 MERGE guardrails present
 Soft delete pattern used
 Schema JSON present
+
+Known Pattern: Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ (API 4 — HEM)
+Friendly Name: Hires, Exits and Internal Movements
+HTTP Method: GET
+Total Rows: ~10,567
+Reporting Prefix: hem__
+
+Business Key
+Four-column composite: EmplId + EffDt + EffSeq + EmplRcd
+All four required; NULL EmplId rows dropped (DropReason = 'NULL_EMPLID')
+Remaining duplicates on composite key → DropReason = 'DUPLICATE_COMPOSITE_KEY'
+
+Schema Complexity: 140 columns
+Because 140 data columns make a 136-condition OR clause impractical in WHEN MATCHED,
+use the RowHash VARBINARY(32) pattern instead:
+
+1. Add RowHash VARBINARY(32) NULL to the target table (02_target.sql)
+2. Pre-compute SHA2_256 hash in a source CTE using CONCAT_WS + COALESCE:
+   _RowHash = HASHBYTES('SHA2_256', CAST(CONCAT_WS('|', col1, col2, ...) AS NVARCHAR(MAX)))
+   - Nullable strings: COALESCE(col, '')
+   - Nullable dates: COALESCE(CONVERT(NVARCHAR(10), col, 23), '')
+   - Nullable numerics: COALESCE(CONVERT(NVARCHAR(38), col), '')
+3. WHEN MATCHED condition: tgt.IsActive = 0 OR tgt.RowHash <> src._RowHash
+4. SET RowHash = src._RowHash in the UPDATE and INSERT branches
+
+Threshold: Use RowHash pattern when table has > ~50 data columns.
+Use individual column OR comparisons for tables with <= ~55 data columns.
+
+Key Columns by Section
+Event Header: MoveType, MoveType1, MoveType2, CompChange, FiscalYear
+New_ state: 57 columns (NewDeptId, NewOrganization, NewLevel1, NewLevel2, etc.)
+Prior_ state: 61 columns (PriorDeptId, PriorOrganization, etc.)
+
+NULL Prior_ columns
+~1377 rows have all NULL Prior_ columns — these are hire events (first HR event,
+no prior state exists). This is EXPECTED data, not a quality issue.
+
+MERGE ON (NULL-safe for all four key cols)
+tgt.EmplId  = src.EmplId
+AND tgt.EffDt   = src.EffDt
+AND tgt.EffSeq  = src.EffSeq
+AND tgt.EmplRcd = src.EmplRcd
+
+Dropped Records
+Table: dbo.Stg_Peoplesoft_HEM_Dropped
+DropReason values: 'NULL_EMPLID', 'DUPLICATE_COMPOSITE_KEY'
+
+
+Known Pattern: Datamart_CITZ_Report_TimeInPositionEmployee (API 5 — TIP)
+Friendly Name: Time In Position Employee
+HTTP Method: GET
+Total Rows: ~18,551
+Reporting Prefix: tip__
+
+Business Key
+Four-column composite: EmployeeId + Position + EntryDate + EntrySeq
+NULL EmployeeId rows dropped (DropReason = 'NULL_EMPLOYEEID')
+Remaining duplicates → DropReason = 'DUPLICATE_COMPOSITE_KEY'
+
+Schema Complexity: 55 columns
+Individual column comparisons in WHEN MATCHED are used (no RowHash needed).
+Total OR conditions: ~51 — manageable.
+
+Key Observations
+ExitDate NULL for ~2764 rows: employees still currently in the position
+  — this is EXPECTED, not a quality issue
+'core' JSON field is lowercase — rename map must use: Core = "core"
+No report metadata columns in this API
+
+MERGE ON
+tgt.EmployeeId = src.EmployeeId
+AND tgt.Position   = src.Position
+AND tgt.EntryDate  = src.EntryDate
+AND tgt.EntrySeq   = src.EntrySeq
+
+Dropped Records
+Table: dbo.Stg_Peoplesoft_TIP_Dropped
+DropReason values: 'NULL_EMPLOYEEID', 'DUPLICATE_COMPOSITE_KEY'
 R script closes DB connection

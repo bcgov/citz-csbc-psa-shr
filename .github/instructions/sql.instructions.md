@@ -262,3 +262,51 @@ Document the reason with a comment in the staging DDL and target DDL
 SHR010HRORG example:
   AsOfDate (JSON: "As_of_Date") — 1 distinct value per run
   Stored in Stg_Peoplesoft_SHR010HRORG; excluded from Peoplesoft_SHR010HRORG
+
+
+RowHash Pattern for Wide Tables (100+ columns)
+When a table has more than ~50 data columns, the WHEN MATCHED OR expression becomes
+impractical. Use a pre-computed SHA2_256 row hash instead.
+
+When to use
+Use RowHash pattern when the table has > ~50 data columns.
+Use individual column OR comparisons for tables with <= ~55 columns.
+
+Implementation
+1. Add to target table DDL (02_target.sql):
+   RowHash VARBINARY(32) NULL
+
+2. In 04_merge_proc.sql, add a source CTE that pre-computes the hash:
+   ;WITH source_hashed AS (
+       SELECT *,
+           HASHBYTES('SHA2_256',
+               CAST(CONCAT_WS('|',
+                   COALESCE(col1, ''),
+                   COALESCE(col2, ''),
+                   COALESCE(CONVERT(NVARCHAR(10), date_col, 23), ''),
+                   COALESCE(CONVERT(NVARCHAR(38), numeric_col), ''),
+                   ...
+               ) AS NVARCHAR(MAX))
+           ) AS _RowHash
+       FROM dbo.Stg_<TableName>
+   )
+
+3. WHEN MATCHED condition:
+   WHEN MATCHED AND (tgt.IsActive = 0 OR tgt.RowHash <> src._RowHash)
+
+4. SET in UPDATE branch:
+   tgt.RowHash = src._RowHash, ...
+
+5. INSERT branch:
+   RowHash = src._RowHash
+
+NULL handling in CONCAT_WS / HASHBYTES
+- Nullable strings:  COALESCE(col, '')
+- Nullable dates:    COALESCE(CONVERT(NVARCHAR(10), col, 23), '')
+- Nullable numerics: COALESCE(CONVERT(NVARCHAR(38), col), '')
+
+Rationale: CONCAT_WS already skips NULLs, but using COALESCE ensures consistent
+hash output between NULL and empty string — preventing false change detections.
+
+Reference implementation: Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ
+(140 columns, 136 data columns in hash)
