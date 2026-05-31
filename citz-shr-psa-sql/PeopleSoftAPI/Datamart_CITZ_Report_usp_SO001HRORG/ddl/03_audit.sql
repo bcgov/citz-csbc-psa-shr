@@ -1,3 +1,7 @@
+IF OBJECT_ID('dbo.Peoplesoft_SO001HRORG_Audit', 'U') IS NOT NULL
+    DROP TABLE dbo.Peoplesoft_SO001HRORG_Audit;
+GO
+
 CREATE TABLE dbo.Peoplesoft_SO001HRORG_Audit
 (
     AuditId          BIGINT IDENTITY(1,1) PRIMARY KEY,

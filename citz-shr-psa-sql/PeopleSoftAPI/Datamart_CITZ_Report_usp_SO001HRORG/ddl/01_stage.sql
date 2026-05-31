@@ -1,3 +1,7 @@
+IF OBJECT_ID('dbo.Stg_Peoplesoft_SO001HRORG', 'U') IS NOT NULL
+    DROP TABLE dbo.Stg_Peoplesoft_SO001HRORG;
+GO
+
 CREATE TABLE dbo.Stg_Peoplesoft_SO001HRORG
 (
     -- Business key (composite: PosPosition + EmplId)
