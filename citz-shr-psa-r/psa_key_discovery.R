@@ -43,7 +43,7 @@ library(tibble)
 
 # --- CONFIGURATION: Set your API name here -----------------------------------
 
-api_name <- "Datamart_CITZ_Report_TimeInPositionEmployee"
+api_name <- "Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ"
 
 # --- Resolve project root and load environment config ------------------------
 

@@ -1,0 +1,1132 @@
+{
+  "api_name": "Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ",
+  "discovered": "2026-05-31 02:56:04 PDT",
+  "environment": "PROD",
+  "total_rows": 10567,
+  "total_columns": 140,
+  "single_column_analysis": {
+    "CompChange": {
+      "column": "CompChange",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "EFFDT": {
+      "column": "EFFDT",
+      "distinct_count": 1526,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 14.4
+    },
+    "EFFSEQ": {
+      "column": "EFFSEQ",
+      "distinct_count": 5,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Empl_RCD": {
+      "column": "Empl_RCD",
+      "distinct_count": 3,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "EmplID": {
+      "column": "EmplID",
+      "distinct_count": 4199,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 39.7
+    },
+    "Estimated_Years_of_Service": {
+      "column": "Estimated_Years_of_Service",
+      "distinct_count": 49,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "EstimatedYearsOfService": {
+      "column": "EstimatedYearsOfService",
+      "distinct_count": 49,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "EstimatedYearsOfServiceString": {
+      "column": "EstimatedYearsOfServiceString",
+      "distinct_count": 2518,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 23.8
+    },
+    "First_Date_of_Service": {
+      "column": "First_Date_of_Service",
+      "distinct_count": 1930,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 18.3
+    },
+    "FiscalYear": {
+      "column": "FiscalYear",
+      "distinct_count": 7,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Leave_Service_DT": {
+      "column": "Leave_Service_DT",
+      "distinct_count": 2162,
+      "total_rows": 10567,
+      "null_count": 20,
+      "is_unique": false,
+      "pct": 20.5
+    },
+    "Most_Historic_Date": {
+      "column": "Most_Historic_Date",
+      "distinct_count": 1918,
+      "total_rows": 10567,
+      "null_count": 4,
+      "is_unique": false,
+      "pct": 18.2
+    },
+    "MoveType": {
+      "column": "MoveType",
+      "distinct_count": 3,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "MoveType1": {
+      "column": "MoveType1",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "MoveType1_Sort": {
+      "column": "MoveType1_Sort",
+      "distinct_count": 3,
+      "total_rows": 10567,
+      "null_count": 2888,
+      "is_unique": false,
+      "pct": 0
+    },
+    "MoveType2": {
+      "column": "MoveType2",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Name": {
+      "column": "Name",
+      "distinct_count": 4192,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 39.7
+    },
+    "New_Action": {
+      "column": "New_Action",
+      "distinct_count": 9,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_Action_DT": {
+      "column": "New_Action_DT",
+      "distinct_count": 1389,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 13.1
+    },
+    "New_ActionReason": {
+      "column": "New_ActionReason",
+      "distinct_count": 31,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "New_ActionReason_Descr": {
+      "column": "New_ActionReason_Descr",
+      "distinct_count": 36,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "New_ANNUAL_RT": {
+      "column": "New_ANNUAL_RT",
+      "distinct_count": 2137,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 20.2
+    },
+    "New_Business_Unit": {
+      "column": "New_Business_Unit",
+      "distinct_count": 39,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "New_Business_Unit_Descr": {
+      "column": "New_Business_Unit_Descr",
+      "distinct_count": 36,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "New_City": {
+      "column": "New_City",
+      "distinct_count": 78,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.7
+    },
+    "New_Classification_Group": {
+      "column": "New_Classification_Group",
+      "distinct_count": 11,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_COMPRATE": {
+      "column": "New_COMPRATE",
+      "distinct_count": 1692,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 16
+    },
+    "New_CoreBU": {
+      "column": "New_CoreBU",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_CoreOrg": {
+      "column": "New_CoreOrg",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_DeptID": {
+      "column": "New_DeptID",
+      "distinct_count": 893,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 8.5
+    },
+    "New_DeptID_Descr": {
+      "column": "New_DeptID_Descr",
+      "distinct_count": 1256,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 11.9
+    },
+    "New_Development_Region": {
+      "column": "New_Development_Region",
+      "distinct_count": 8,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_Empl_CTG": {
+      "column": "New_Empl_CTG",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Empl_CTG_Descr": {
+      "column": "New_Empl_CTG_Descr",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Empl_Status": {
+      "column": "New_Empl_Status",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_Empl_Status_Descr": {
+      "column": "New_Empl_Status_Descr",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_EndOfDayHR_Status": {
+      "column": "New_EndOfDayHR_Status",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_EndOfDayPER_ORG": {
+      "column": "New_EndOfDayPER_ORG",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_EstimatedYearsInOrganization": {
+      "column": "New_EstimatedYearsInOrganization",
+      "distinct_count": 47,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "New_EstimatedYearsInOrganizationString": {
+      "column": "New_EstimatedYearsInOrganizationString",
+      "distinct_count": 2497,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 23.6
+    },
+    "New_EstimatedYearsInPosition": {
+      "column": "New_EstimatedYearsInPosition",
+      "distinct_count": 44,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "New_EstimatedYearsInPositionString": {
+      "column": "New_EstimatedYearsInPositionString",
+      "distinct_count": 2126,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 20.1
+    },
+    "New_First_Date_in_Organization": {
+      "column": "New_First_Date_in_Organization",
+      "distinct_count": 1730,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 16.4
+    },
+    "New_First_Date_in_Position": {
+      "column": "New_First_Date_in_Position",
+      "distinct_count": 1833,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 17.3
+    },
+    "New_Grade": {
+      "column": "New_Grade",
+      "distinct_count": 49,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "New_Hire_Date": {
+      "column": "New_Hire_Date",
+      "distinct_count": 1847,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 17.5
+    },
+    "New_HOURLY_RT": {
+      "column": "New_HOURLY_RT",
+      "distinct_count": 87,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.8
+    },
+    "New_HR_Status": {
+      "column": "New_HR_Status",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Included_or_Excluded": {
+      "column": "New_Included_or_Excluded",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_IsSupervisor": {
+      "column": "New_IsSupervisor",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Job_Function": {
+      "column": "New_Job_Function",
+      "distinct_count": 19,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "New_Jobcode": {
+      "column": "New_Jobcode",
+      "distinct_count": 146,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.4
+    },
+    "New_Jobcode_Descr": {
+      "column": "New_Jobcode_Descr",
+      "distinct_count": 136,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.3
+    },
+    "New_Level1": {
+      "column": "New_Level1",
+      "distinct_count": 175,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.7
+    },
+    "New_Level2": {
+      "column": "New_Level2",
+      "distinct_count": 480,
+      "total_rows": 10567,
+      "null_count": 4,
+      "is_unique": false,
+      "pct": 4.5
+    },
+    "New_Level3": {
+      "column": "New_Level3",
+      "distinct_count": 658,
+      "total_rows": 10567,
+      "null_count": 334,
+      "is_unique": false,
+      "pct": 6.2
+    },
+    "New_Life_Cycle": {
+      "column": "New_Life_Cycle",
+      "distinct_count": 3,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Location": {
+      "column": "New_Location",
+      "distinct_count": 460,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 4.4
+    },
+    "New_Location_Group": {
+      "column": "New_Location_Group",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_MAX_RT_HOURLY": {
+      "column": "New_MAX_RT_HOURLY",
+      "distinct_count": 63,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.6
+    },
+    "New_Organization": {
+      "column": "New_Organization",
+      "distinct_count": 31,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "New_PER_ORG": {
+      "column": "New_PER_ORG",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Position_Descr": {
+      "column": "New_Position_Descr",
+      "distinct_count": 2112,
+      "total_rows": 10567,
+      "null_count": 2,
+      "is_unique": false,
+      "pct": 20
+    },
+    "New_Position_NBR": {
+      "column": "New_Position_NBR",
+      "distinct_count": 4286,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 40.6
+    },
+    "New_PSA": {
+      "column": "New_PSA",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Regional_District": {
+      "column": "New_Regional_District",
+      "distinct_count": 29,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "New_Rehire_Date": {
+      "column": "New_Rehire_Date",
+      "distinct_count": 1819,
+      "total_rows": 10567,
+      "null_count": 3,
+      "is_unique": false,
+      "pct": 17.2
+    },
+    "New_Reports_to": {
+      "column": "New_Reports_to",
+      "distinct_count": 1993,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 18.9
+    },
+    "New_Sal_Admin_Plan": {
+      "column": "New_Sal_Admin_Plan",
+      "distinct_count": 5,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_SelectedGroup": {
+      "column": "New_SelectedGroup",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_STD_HOURS": {
+      "column": "New_STD_HOURS",
+      "distinct_count": 23,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "New_STEP": {
+      "column": "New_STEP",
+      "distinct_count": 8,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "New_Supervisor": {
+      "column": "New_Supervisor",
+      "distinct_count": 1616,
+      "total_rows": 10567,
+      "null_count": 322,
+      "is_unique": false,
+      "pct": 15.3
+    },
+    "Prior_Action": {
+      "column": "Prior_Action",
+      "distinct_count": 14,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_Action_DT": {
+      "column": "Prior_Action_DT",
+      "distinct_count": 1376,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 13
+    },
+    "Prior_ActionReason": {
+      "column": "Prior_ActionReason",
+      "distinct_count": 63,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.6
+    },
+    "Prior_ANNUAL_RT": {
+      "column": "Prior_ANNUAL_RT",
+      "distinct_count": 2147,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 20.3
+    },
+    "Prior_Business_Unit": {
+      "column": "Prior_Business_Unit",
+      "distinct_count": 44,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Prior_Business_Unit_Descr": {
+      "column": "Prior_Business_Unit_Descr",
+      "distinct_count": 41,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Prior_City": {
+      "column": "Prior_City",
+      "distinct_count": 80,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.8
+    },
+    "Prior_Classification_Group": {
+      "column": "Prior_Classification_Group",
+      "distinct_count": 11,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_COMPRATE": {
+      "column": "Prior_COMPRATE",
+      "distinct_count": 1690,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 16
+    },
+    "Prior_CoreBU": {
+      "column": "Prior_CoreBU",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_CoreOrg": {
+      "column": "Prior_CoreOrg",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_DeptID": {
+      "column": "Prior_DeptID",
+      "distinct_count": 1015,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 9.6
+    },
+    "Prior_DeptID_Descr": {
+      "column": "Prior_DeptID_Descr",
+      "distinct_count": 1374,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 13
+    },
+    "Prior_Development_Region": {
+      "column": "Prior_Development_Region",
+      "distinct_count": 8,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_EFFDT": {
+      "column": "Prior_EFFDT",
+      "distinct_count": 1495,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 14.1
+    },
+    "Prior_EFFSEQ": {
+      "column": "Prior_EFFSEQ",
+      "distinct_count": 8,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_Empl_CTG": {
+      "column": "Prior_Empl_CTG",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Empl_CTG_Descr": {
+      "column": "Prior_Empl_CTG_Descr",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Empl_Status": {
+      "column": "Prior_Empl_Status",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_Empl_Status_Descr": {
+      "column": "Prior_Empl_Status_Descr",
+      "distinct_count": 6,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_EndOfDayHR_Status": {
+      "column": "Prior_EndOfDayHR_Status",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1416,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_EndOfDayPER_ORG": {
+      "column": "Prior_EndOfDayPER_ORG",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 1416,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_EstimatedYearsInOrganization": {
+      "column": "Prior_EstimatedYearsInOrganization",
+      "distinct_count": 48,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "Prior_EstimatedYearsInOrganizationString": {
+      "column": "Prior_EstimatedYearsInOrganizationString",
+      "distinct_count": 2630,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 24.9
+    },
+    "Prior_EstimatedYearsInPosition": {
+      "column": "Prior_EstimatedYearsInPosition",
+      "distinct_count": 45,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Prior_EstimatedYearsInPositionString": {
+      "column": "Prior_EstimatedYearsInPositionString",
+      "distinct_count": 2258,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 21.4
+    },
+    "Prior_First_Date_in_Organization": {
+      "column": "Prior_First_Date_in_Organization",
+      "distinct_count": 1750,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 16.6
+    },
+    "Prior_First_Date_in_Position": {
+      "column": "Prior_First_Date_in_Position",
+      "distinct_count": 1940,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 18.4
+    },
+    "Prior_FiscalYear": {
+      "column": "Prior_FiscalYear",
+      "distinct_count": 30,
+      "total_rows": 10567,
+      "null_count": 1378,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "Prior_Grade": {
+      "column": "Prior_Grade",
+      "distinct_count": 62,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.6
+    },
+    "Prior_Hire_Date": {
+      "column": "Prior_Hire_Date",
+      "distinct_count": 1762,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 16.7
+    },
+    "Prior_HOURLY_RT": {
+      "column": "Prior_HOURLY_RT",
+      "distinct_count": 96,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.9
+    },
+    "Prior_HR_Status": {
+      "column": "Prior_HR_Status",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Included_or_Excluded": {
+      "column": "Prior_Included_or_Excluded",
+      "distinct_count": 5,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_IsSupervisor": {
+      "column": "Prior_IsSupervisor",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Job_Function": {
+      "column": "Prior_Job_Function",
+      "distinct_count": 21,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Prior_Jobcode": {
+      "column": "Prior_Jobcode",
+      "distinct_count": 163,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 1.5
+    },
+    "Prior_Jobcode_Descr": {
+      "column": "Prior_Jobcode_Descr",
+      "distinct_count": 162,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 1.5
+    },
+    "Prior_Level1": {
+      "column": "Prior_Level1",
+      "distinct_count": 190,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 1.8
+    },
+    "Prior_Level2": {
+      "column": "Prior_Level2",
+      "distinct_count": 549,
+      "total_rows": 10567,
+      "null_count": 1382,
+      "is_unique": false,
+      "pct": 5.2
+    },
+    "Prior_Level3": {
+      "column": "Prior_Level3",
+      "distinct_count": 734,
+      "total_rows": 10567,
+      "null_count": 1764,
+      "is_unique": false,
+      "pct": 6.9
+    },
+    "Prior_Location": {
+      "column": "Prior_Location",
+      "distinct_count": 494,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 4.7
+    },
+    "Prior_Location_Group": {
+      "column": "Prior_Location_Group",
+      "distinct_count": 4,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_MAX_RT_HOURLY": {
+      "column": "Prior_MAX_RT_HOURLY",
+      "distinct_count": 79,
+      "total_rows": 10567,
+      "null_count": 1379,
+      "is_unique": false,
+      "pct": 0.7
+    },
+    "Prior_Organization": {
+      "column": "Prior_Organization",
+      "distinct_count": 33,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "Prior_PER_ORG": {
+      "column": "Prior_PER_ORG",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Position_Descr": {
+      "column": "Prior_Position_Descr",
+      "distinct_count": 2060,
+      "total_rows": 10567,
+      "null_count": 1379,
+      "is_unique": false,
+      "pct": 19.5
+    },
+    "Prior_Position_NBR": {
+      "column": "Prior_Position_NBR",
+      "distinct_count": 4088,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 38.7
+    },
+    "Prior_PSA": {
+      "column": "Prior_PSA",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_Regional_District": {
+      "column": "Prior_Regional_District",
+      "distinct_count": 29,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "Prior_Rehire_Date": {
+      "column": "Prior_Rehire_Date",
+      "distinct_count": 1771,
+      "total_rows": 10567,
+      "null_count": 1381,
+      "is_unique": false,
+      "pct": 16.8
+    },
+    "Prior_Reports_to": {
+      "column": "Prior_Reports_to",
+      "distinct_count": 2092,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 19.8
+    },
+    "Prior_Sal_Admin_Plan": {
+      "column": "Prior_Sal_Admin_Plan",
+      "distinct_count": 8,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_SelectedGroup": {
+      "column": "Prior_SelectedGroup",
+      "distinct_count": 1,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Prior_SEQ": {
+      "column": "Prior_SEQ",
+      "distinct_count": 130,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "Prior_STD_HOURS": {
+      "column": "Prior_STD_HOURS",
+      "distinct_count": 23,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Prior_STEP": {
+      "column": "Prior_STEP",
+      "distinct_count": 9,
+      "total_rows": 10567,
+      "null_count": 1377,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_Supervisor": {
+      "column": "Prior_Supervisor",
+      "distinct_count": 1645,
+      "total_rows": 10567,
+      "null_count": 1828,
+      "is_unique": false,
+      "pct": 15.6
+    },
+    "SameGroup": {
+      "column": "SameGroup",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "SameLevel1": {
+      "column": "SameLevel1",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "SameOrg": {
+      "column": "SameOrg",
+      "distinct_count": 2,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "SEQ": {
+      "column": "SEQ",
+      "distinct_count": 131,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.2
+    },
+    "SupervisorMove": {
+      "column": "SupervisorMove",
+      "distinct_count": 7,
+      "total_rows": 10567,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Prior_ActionReason_Descr": {
+      "column": "Prior_ActionReason_Descr",
+      "distinct_count": 43,
+      "total_rows": 10567,
+      "null_count": 6679,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Prior_Life_Cycle": {
+      "column": "Prior_Life_Cycle",
+      "distinct_count": 3,
+      "total_rows": 10567,
+      "null_count": 6679,
+      "is_unique": false,
+      "pct": 0
+    },
+    "New_Level4": {
+      "column": "New_Level4",
+      "distinct_count": 307,
+      "total_rows": 10567,
+      "null_count": 8831,
+      "is_unique": false,
+      "pct": 2.9
+    },
+    "Prior_Level4": {
+      "column": "Prior_Level4",
+      "distinct_count": 364,
+      "total_rows": 10567,
+      "null_count": 8970,
+      "is_unique": false,
+      "pct": 3.4
+    }
+  },
+  "unique_single_columns": [],
+  "composite_keys_found": [],
+  "recommendation": "No natural key found"
+}
