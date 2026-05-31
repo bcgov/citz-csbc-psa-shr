@@ -1,9 +1,9 @@
 {
-  "@odata.context": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/$metadata#Collection%28CData.Datamart_CITZ_Report_usp_SO001HRORGOutput%29",
+  "@odata.context": "https://api.gov.bc.ca/apiserver/api.rsc/$metadata#Collection%28CData.Datamart_CITZ_Report_usp_SO001HRORGOutput%29",
   "_discovery": {
     "api_name": "Datamart_CITZ_Report_usp_SO001HRORG",
     "method": "POST",
-    "url": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_Report_usp_SO001HRORG?$top=1",
+    "url": "https://api.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_Report_usp_SO001HRORG?$top=1",
     "discovered": "2026-05-30 18:22:54 PDT",
     "environment": "PROD"
   },

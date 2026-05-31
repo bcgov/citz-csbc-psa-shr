@@ -1,5 +1,5 @@
 {
-  "@odata.context": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_vw_Dept_Org_Levels",
+  "@odata.context": "https://api.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_vw_Dept_Org_Levels",
   "value": [
     {
       "DepartmentID": "002-0006",
