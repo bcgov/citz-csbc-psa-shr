@@ -16,3 +16,17 @@ applyTo: "**/*.sql"
 - Include `GO` after procedure definitions
 - Never use physical `DELETE` in MERGE — use soft delete (`IsActive = 0`)
 - SQL file naming: lowercase with double underscore separator (`entity__purpose.sql`)
+
+## Report Metadata Columns
+- Some APIs include per-run report metadata (e.g., ReportName, RunDate)
+- These MUST be:
+  - Present in staging table (for data lineage)
+  - ABSENT from target table
+  - ABSENT from audit table
+  - ABSENT from MERGE comparison clauses
+  - ABSENT from HASHBYTES calculations
+- Add a comment in staging DDL explaining why they are excluded downstream
+
+## JSON Field Name Comments
+- When JSON field names differ from SQL column names, add inline comments
+  in staging DDL: `PosRole NVARCHAR(255) NULL, -- JSON: "pos role"`

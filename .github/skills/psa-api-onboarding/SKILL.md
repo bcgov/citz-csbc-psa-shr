@@ -77,6 +77,107 @@ Always use `Datamart_CITZ_Report_vw_Dept_Org_Levels` as the gold standard:
 - Copy structure from `psa_dept_org_levels_etl.R`
 - Change ONLY: `api_name`, `staging_table`, `target_table`, `expected`, `char_cols`, `int_cols`
 - Keep identical: license header, env config loading, auth, proxy, pagination, normalize, SQL connection
+- **Field renaming — use `any_of()` pattern (REQUIRED):**
+  Build a named character vector sourced from the schema JSON `value[0]` keys:
+  ```r
+  json_to_sql <- c(
+    SqlColName = "json_field_name",
+    ...
+  )
+  df <- df |> dplyr::rename(any_of(json_to_sql))
+  ```
+  Do NOT use bare `dplyr::rename(NewName = old_name, ...)`. That form throws a hard error
+  when a column is absent. Fields that are always `{}` (empty object) can be dropped by
+  `bind_rows()`, and live API responses can omit fields present in the schema sample.
+  `any_of()` silently skips missing columns, making the ETL resilient to API schema drift.
+- **Map field names directly from schema JSON** — open `schemas/<api>_schema.json`, read
+  the keys under `value[0]`, and use those exact strings as the right-hand side of the
+  rename map. Fields with spaces (e.g. `"pos role"`, `"maildrop city"`) must be quoted
+  strings in the vector (no backticks needed in the vector form).
+- If `http_method` in the schema `_discovery` block is `POST`, add `req_method("POST")`
+  to the `request()` chain in `fetch_page()`.
+
+## Step 8: JSON Field Name Mapping (if needed)
+- Compare JSON field names from schema with SQL column names
+- If JSON uses snake_case, spaces, or lowercase:
+  - Add `dplyr::rename()` block in R ETL script
+  - Map every field explicitly (no automatic conversion)
+  - Add `-- JSON: "original_name"` comments in staging DDL
+- If JSON uses PascalCase already: no rename needed
+
+## Step 9: Detect Report Metadata Columns
+- Look for fields that contain per-run values (e.g., report name, run date, subtitle)
+- These fields change on every API call and are NOT meaningful data changes
+- Include them in STAGING ONLY
+- Exclude from target, audit, MERGE comparison, and HASHBYTES
+
+## Step 10: Determine HTTP Method
+- Check `_discovery.method` in the schema JSON
+- If POST: add `req_method("POST")` in the R ETL `fetch_page()` function
+- If GET: use default (no change needed)
+
+## Step 11: Sanity Check (before commit)
+Before committing generated files, verify ALL of the following:
+
+### SQL Checks
+- [ ] Staging table name: `Stg_Peoplesoft_<EntityName>`
+- [ ] Target table name: `Peoplesoft_<EntityName>`
+- [ ] Audit table name: `Peoplesoft_<EntityName>_Audit`
+- [ ] Stored procedure name: `usp_Merge_PeopleSoft_<EntityName>`
+- [ ] Business key identified, NOT NULL, and used in MERGE ON clause
+- [ ] Target has `IsActive`, `CreatedUtc`, `LastUpdatedUtc`
+- [ ] All 4 guardrails present (THROW 51000-51003)
+- [ ] MERGE uses `WITH (HOLDLOCK)`
+- [ ] MERGE uses `;MERGE` prefix
+- [ ] Soft delete pattern (IsActive=0, no physical DELETE)
+- [ ] OUTPUT clause has ActionType CASE (SOFT_DELETE/REACTIVATE/$action)
+- [ ] HASHBYTES separator is `'|'` (consistent with other APIs)
+- [ ] Report metadata excluded from target, audit, MERGE, HASHBYTES
+- [ ] Audit table has Old/New for every data column
+- [ ] Audit index on `(RunId, ActionType)`
+- [ ] `CREATE OR ALTER PROCEDURE` for idempotency
+- [ ] Transaction + TRY/CATCH in MERGE proc
+- [ ] Run summary SELECT at end of proc
+
+### R Script Checks
+- [ ] `api_name` matches exact API name
+- [ ] HTTP method matches discovery result (GET or POST)
+- [ ] `staging_table` matches staging DDL
+- [ ] `target_table` matches target DDL
+- [ ] Column rename mapping is complete (if JSON names differ)
+- [ ] `expected` list includes all staging columns
+- [ ] `char_cols` and `int_cols` match SQL schema types
+- [ ] `int_cols` uses correct columns (not strings stored as NVARCHAR)
+- [ ] Report metadata in `expected` but excluded from target by MERGE proc
+- [ ] Apache 2.0 license header present
+- [ ] No credentials, server names, or internal URLs in code
+- [ ] `dbDisconnect(con)` at end of script
+- [ ] Env var validation present (config + credentials)
+
+### Cross-File Consistency
+- [ ] Column count in staging = column count in R `expected`
+- [ ] Column names in staging DDL match R rename output
+- [ ] Column names in MERGE match target table columns
+- [ ] Audit Old/New columns match target data columns
+- [ ] HASHBYTES columns match MERGE comparison columns
+
+## Lessons Learned (from onboarded APIs)
+
+### API 1: Datamart_CITZ_Report_vw_Dept_Org_Levels
+- GET method
+- JSON fields already in PascalCase — no rename needed
+- No report metadata columns
+- Business key: DepartmentID
+- 12 columns (simple schema)
+
+### API 2: Datamart_CITZ_Report_usp_SO001HRORG
+- POST method (GET returns 400)
+- JSON fields in snake_case and spaces — full rename required
+- 3 report metadata columns (ReportName, SubTitle, RunDate) excluded from target/audit
+- Business key: PosPosition
+- 75+ columns (complex schema)
+- Architectural decision: report metadata stored in staging only to prevent
+  false UPDATE events on every row during MERGE
 
 ## Validation Checklist
 - [ ] All files follow naming conventions
