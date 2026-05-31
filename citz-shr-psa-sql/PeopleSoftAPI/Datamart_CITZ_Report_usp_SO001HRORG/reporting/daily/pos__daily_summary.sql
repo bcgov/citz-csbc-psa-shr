@@ -18,19 +18,17 @@ FROM dbo.Peoplesoft_SO001HRORG
 WHERE IsActive = 1;
 
 -- Latest run change summary
-DECLARE @RunId UNIQUEIDENTIFIER =
+;WITH latest_run AS
 (
-    SELECT TOP (1) RunId
+    SELECT MAX(RunId) AS RunId
     FROM dbo.Peoplesoft_SO001HRORG_Audit
-    ORDER BY AuditDtmUtc DESC
-);
-
+)
 SELECT
-    MIN(AuditDtmUtc)                                              AS RunStartUtc,
-    SUM(CASE WHEN ActionType = 'INSERT'      THEN 1 ELSE 0 END)  AS Inserts,
-    SUM(CASE WHEN ActionType = 'UPDATE'      THEN 1 ELSE 0 END)  AS Updates,
-    SUM(CASE WHEN ActionType = 'SOFT_DELETE' THEN 1 ELSE 0 END)  AS SoftDeletes,
-    SUM(CASE WHEN ActionType = 'REACTIVATE'  THEN 1 ELSE 0 END)  AS Reactivations,
-    COUNT(*)                                                      AS TotalEvents
-FROM dbo.Peoplesoft_SO001HRORG_Audit
-WHERE RunId = @RunId;
+    MIN(a.AuditDtmUtc)                                              AS RunStartUtc,
+    SUM(CASE WHEN a.ActionType = 'INSERT'      THEN 1 ELSE 0 END)  AS Inserts,
+    SUM(CASE WHEN a.ActionType = 'UPDATE'      THEN 1 ELSE 0 END)  AS Updates,
+    SUM(CASE WHEN a.ActionType = 'SOFT_DELETE' THEN 1 ELSE 0 END)  AS SoftDeletes,
+    SUM(CASE WHEN a.ActionType = 'REACTIVATE'  THEN 1 ELSE 0 END)  AS Reactivations,
+    COUNT(*)                                                        AS TotalEvents
+FROM dbo.Peoplesoft_SO001HRORG_Audit a
+JOIN latest_run lr ON a.RunId = lr.RunId;

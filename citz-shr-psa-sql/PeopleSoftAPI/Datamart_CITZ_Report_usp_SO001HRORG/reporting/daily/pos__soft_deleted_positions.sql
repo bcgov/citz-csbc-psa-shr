@@ -5,26 +5,24 @@ Purpose: Positions soft-deleted (IsActive 1 -> 0) in the latest ETL run.
 
 SET NOCOUNT ON;
 
-DECLARE @RunId UNIQUEIDENTIFIER =
+;WITH latest_run AS
 (
-    SELECT TOP (1) RunId
+    SELECT MAX(RunId) AS RunId
     FROM dbo.Peoplesoft_SO001HRORG_Audit
-    ORDER BY AuditDtmUtc DESC
-);
-
+)
 SELECT
-    PosPosition,
-    EmplId,
-    OldName            AS Name,
-    OldTitle           AS Title,
-    OldOrganization    AS Organization,
-    OldLevel1          AS Level1,
-    OldLevel2          AS Level2,
-    OldLevel3          AS Level3,
-    OldPosDepartment   AS PosDepartment,
-    OldStatus          AS Status,
-    AuditDtmUtc
-FROM dbo.Peoplesoft_SO001HRORG_Audit
-WHERE RunId = @RunId
-  AND ActionType = 'SOFT_DELETE'
-ORDER BY PosPosition;
+    a.PosPosition,
+    a.EmplId,
+    a.OldName            AS Name,
+    a.OldTitle           AS Title,
+    a.OldOrganization    AS Organization,
+    a.OldLevel1          AS Level1,
+    a.OldLevel2          AS Level2,
+    a.OldLevel3          AS Level3,
+    a.OldPosDepartment   AS PosDepartment,
+    a.OldStatus          AS Status,
+    a.AuditDtmUtc
+FROM dbo.Peoplesoft_SO001HRORG_Audit a
+JOIN latest_run lr ON a.RunId = lr.RunId
+WHERE a.ActionType = 'SOFT_DELETE'
+ORDER BY a.PosPosition;

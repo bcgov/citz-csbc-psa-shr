@@ -5,26 +5,24 @@ Purpose: Positions reactivated (IsActive 0 -> 1) in the latest ETL run.
 
 SET NOCOUNT ON;
 
-DECLARE @RunId UNIQUEIDENTIFIER =
+;WITH latest_run AS
 (
-    SELECT TOP (1) RunId
+    SELECT MAX(RunId) AS RunId
     FROM dbo.Peoplesoft_SO001HRORG_Audit
-    ORDER BY AuditDtmUtc DESC
-);
-
+)
 SELECT
-    PosPosition,
-    EmplId,
-    OldOrganization    AS WasOrganization,
-    NewOrganization    AS NowOrganization,
-    OldTitle           AS WasTitle,
-    NewTitle           AS NowTitle,
-    OldName            AS WasName,
-    NewName            AS NowName,
-    OldIsActive        AS WasActive,
-    NewIsActive        AS NowActive,
-    AuditDtmUtc
-FROM dbo.Peoplesoft_SO001HRORG_Audit
-WHERE RunId = @RunId
-  AND ActionType = 'REACTIVATE'
-ORDER BY PosPosition;
+    a.PosPosition,
+    a.EmplId,
+    a.OldOrganization    AS WasOrganization,
+    a.NewOrganization    AS NowOrganization,
+    a.OldTitle           AS WasTitle,
+    a.NewTitle           AS NowTitle,
+    a.OldName            AS WasName,
+    a.NewName            AS NowName,
+    a.OldIsActive        AS WasActive,
+    a.NewIsActive        AS NowActive,
+    a.AuditDtmUtc
+FROM dbo.Peoplesoft_SO001HRORG_Audit a
+JOIN latest_run lr ON a.RunId = lr.RunId
+WHERE a.ActionType = 'REACTIVATE'
+ORDER BY a.PosPosition;

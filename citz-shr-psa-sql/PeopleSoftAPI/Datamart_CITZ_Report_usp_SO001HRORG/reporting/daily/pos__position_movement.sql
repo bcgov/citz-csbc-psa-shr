@@ -6,32 +6,30 @@ Purpose: Positions that changed Organization or Level hierarchy in the latest ru
 
 SET NOCOUNT ON;
 
-DECLARE @RunId UNIQUEIDENTIFIER =
+;WITH latest_run AS
 (
-    SELECT TOP (1) RunId
+    SELECT MAX(RunId) AS RunId
     FROM dbo.Peoplesoft_SO001HRORG_Audit
-    ORDER BY AuditDtmUtc DESC
-);
-
+)
 SELECT
-    PosPosition,
-    EmplId,
-    OldOrganization    AS WasOrganization,
-    NewOrganization    AS NowOrganization,
-    OldLevel1          AS WasLevel1,
-    NewLevel1          AS NowLevel1,
-    OldLevel2          AS WasLevel2,
-    NewLevel2          AS NowLevel2,
-    OldLevel3          AS WasLevel3,
-    NewLevel3          AS NowLevel3,
-    AuditDtmUtc
-FROM dbo.Peoplesoft_SO001HRORG_Audit
-WHERE RunId = @RunId
-  AND ActionType IN ('UPDATE', 'REACTIVATE')
+    a.PosPosition,
+    a.EmplId,
+    a.OldOrganization    AS WasOrganization,
+    a.NewOrganization    AS NowOrganization,
+    a.OldLevel1          AS WasLevel1,
+    a.NewLevel1          AS NowLevel1,
+    a.OldLevel2          AS WasLevel2,
+    a.NewLevel2          AS NowLevel2,
+    a.OldLevel3          AS WasLevel3,
+    a.NewLevel3          AS NowLevel3,
+    a.AuditDtmUtc
+FROM dbo.Peoplesoft_SO001HRORG_Audit a
+JOIN latest_run lr ON a.RunId = lr.RunId
+WHERE a.ActionType IN ('UPDATE', 'REACTIVATE')
   AND (
-       ISNULL(OldOrganization,'') <> ISNULL(NewOrganization,'')
-    OR ISNULL(OldLevel1,'') <> ISNULL(NewLevel1,'')
-    OR ISNULL(OldLevel2,'') <> ISNULL(NewLevel2,'')
-    OR ISNULL(OldLevel3,'') <> ISNULL(NewLevel3,'')
+       ISNULL(a.OldOrganization,'') <> ISNULL(a.NewOrganization,'')
+    OR ISNULL(a.OldLevel1,'') <> ISNULL(a.NewLevel1,'')
+    OR ISNULL(a.OldLevel2,'') <> ISNULL(a.NewLevel2,'')
+    OR ISNULL(a.OldLevel3,'') <> ISNULL(a.NewLevel3,'')
   )
-ORDER BY AuditDtmUtc DESC, PosPosition;
+ORDER BY a.AuditDtmUtc DESC, a.PosPosition;
