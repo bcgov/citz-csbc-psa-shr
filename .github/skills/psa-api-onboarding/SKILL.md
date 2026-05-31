@@ -221,6 +221,7 @@ Dropped Records Table (DDL: 05_dropped_stage.sql)
 DropReason Values
 - 'NULL_POSPOSITION'         — PosPosition was NULL or blank in the API response
 - 'DUPLICATE_COMPOSITE_KEY' — Duplicate on (PosPosition, EmplId); removed before staging load
+- 'NULL_EMPLID'              — EmplId was NULL or blank (SHR010HRORG pattern)
 
 R ETL Pattern
 1. Capture null_pos_rows BEFORE dropping (add DropReason = 'NULL_POSPOSITION')
@@ -233,6 +234,45 @@ Reporting
 - Create reporting/audit/audit__dropped_records_summary.sql
 - Show count by DropReason, latest LoadDtmUtc, and sample records
 - Include FutureTermReason column in DUPLICATE_COMPOSITE_KEY samples for diagnosis
+
+
+Known Pattern: SHR010HRORG (Employee HeadCount by Classification)
+Friendly Name: Employee HeadCount by Classification
+HTTP Method: GET
+Total Rows: ~2,764
+
+Business Key
+Single column: emplid -> EmplId (NVARCHAR(20))
+100% unique, 0 nulls confirmed by key_analysis
+No deduplication needed
+Staging enforces PK on EmplId (relational entity, not report-style)
+
+Report Metadata
+As_of_Date -> AsOfDate (DATE)
+1 distinct value per run = API snapshot date
+Stored in staging ONLY
+Excluded from target/audit/HASHBYTES to prevent false daily UPDATEs
+
+New Column Types (new patterns vs SO001HRORG)
+DATE: Birthdate, HireDt, LastHireDt, MostHistoricDate,
+  FirstDateInOrganization, FirstDateInPosition, FutureReturnDate,
+  LayoffLeaveStopPayStartDate, AsOfDate
+DECIMAL(18,4): AnnualRt, CompRate
+DECIMAL(12,4): HourlyRt
+DECIMAL(8,4): Age
+DECIMAL(6,2): StdHours
+INT: EmplRcd, Step
+
+MERGE ON Clause (single key — no ISNULL needed)
+tgt.EmplId = src.EmplId
+
+Nullable fields returning {} from API
+FutureReturnDate (~2682 nulls), LayoffLeaveStopPayReason (~2582 nulls),
+LayoffLeaveStopPayStartDate (~2582 nulls)
+normalize_cell() handles {} -> NA correctly
+
+Reporting prefix: hc__ (headcount)
+Dropped records reason: 'NULL_EMPLID'
 ✅ COPY ENDS HERE
 ✅ Why this works (important)
 No ``` blocks → nothing breaks in paste

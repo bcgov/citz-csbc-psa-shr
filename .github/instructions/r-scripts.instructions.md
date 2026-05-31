@@ -230,3 +230,51 @@ tryCatch({
   warning(paste("Best-effort quality log failed:", conditionMessage(e)))
 })
 
+
+Date Column Type Conversion
+When API returns ISO-format date strings, convert to R Date (not character).
+This produces a SQL DATE column — not NVARCHAR.
+
+Rules
+Use as.Date(as.character(.x)) inside dplyr::across(all_of(date_cols))
+List date column names explicitly in a date_cols vector
+Include ALL date columns: NOT NULL dates AND nullable dates
+Nullable dates that return {} from the API are already NA after normalize_cell()
+  — as.Date(NA_character_) returns NA correctly, no special handling needed
+
+Pattern
+date_cols <- intersect(
+  c("Birthdate", "HireDt", "LastHireDt", "MostHistoricDate",
+    "FirstDateInOrganization", "FirstDateInPosition",
+    "FutureReturnDate", "LayoffLeaveStopPayStartDate", "AsOfDate"),
+  names(df)
+)
+
+df <- df |>
+  dplyr::mutate(
+    dplyr::across(all_of(date_cols), ~ suppressWarnings(as.Date(as.character(.x))))
+  )
+
+Never use as.character() on date columns in the final df — SQL type is DATE.
+
+
+Numeric Column Type Conversion (DECIMAL / INT)
+When API returns numeric values, convert to R numeric/integer — not character.
+
+Rules
+Use as.numeric(.x) for DECIMAL columns (stored as SQL DECIMAL)
+Use as.integer(.x) for INT columns (stored as SQL INT)
+NEVER cast numeric columns to as.character() — they are not text in SQL
+Wrap in suppressWarnings() to handle edge cases silently
+List in separate dec_cols and int_cols vectors
+
+Pattern
+int_cols <- intersect(c("EmplRcd", "Step"), names(df))
+dec_cols <- intersect(c("Age", "AnnualRt", "CompRate", "HourlyRt", "StdHours"), names(df))
+
+df <- df |>
+  dplyr::mutate(
+    dplyr::across(all_of(int_cols),  ~ suppressWarnings(as.integer(.x))),
+    dplyr::across(all_of(dec_cols),  ~ suppressWarnings(as.numeric(.x)))
+  )
+

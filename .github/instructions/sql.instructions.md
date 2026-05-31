@@ -210,3 +210,55 @@ documented
 
 
 If not → STOP
+
+DATE Column Types
+When the API returns ISO-format date strings (e.g., "2024-03-15"), use SQL DATE type — not NVARCHAR.
+
+Rules
+Use DATE for all date columns (both NOT NULL and nullable)
+For MERGE WHEN MATCHED comparisons:
+  NOT NULL date columns: direct comparison (tgt.Col <> src.Col)
+  NULLABLE date columns: ISNULL(CONVERT(NVARCHAR(10), col, 23), '')
+For HASHBYTES:
+  NOT NULL date columns: CONVERT(NVARCHAR(10), col, 23)
+  NULLABLE date columns: COALESCE(CONVERT(NVARCHAR(10), col, 23), '')
+
+SHR010HRORG NOT NULL dates (direct compare):
+  Birthdate, HireDt, MostHistoricDate, FirstDateInOrganization, FirstDateInPosition
+
+SHR010HRORG NULLABLE dates (ISNULL/COALESCE pattern):
+  LastHireDt, FutureReturnDate, LayoffLeaveStopPayStartDate
+
+
+Numeric Column Types (DECIMAL / INT)
+When the API returns numeric values, use appropriate SQL numeric types.
+
+Rules
+Use DECIMAL(p,s) for money and rate columns (not NVARCHAR)
+Use INT for whole-number count columns
+For MERGE WHEN MATCHED comparisons:
+  ISNULL(tgt.Col, -1) <> ISNULL(src.Col, -1)
+For HASHBYTES:
+  COALESCE(CONVERT(NVARCHAR(p), col), '') where p is wide enough for the precision
+
+SHR010HRORG DECIMAL columns:
+  Age DECIMAL(8,4), AnnualRt DECIMAL(18,4), CompRate DECIMAL(18,4),
+  HourlyRt DECIMAL(12,4), StdHours DECIMAL(6,2)
+
+SHR010HRORG INT columns:
+  EmplRcd INT, Step INT
+
+
+Report Metadata: AsOfDate Pattern
+When an API returns a "snapshot date" column that is identical for all rows per run:
+
+Rules
+Store in staging table ONLY (not target, not audit)
+EXCLUDE from HASHBYTES — identical value on all rows would cause every row to
+  appear as an UPDATE on every daily run
+EXCLUDE from MERGE comparisons
+Document the reason with a comment in the staging DDL and target DDL
+
+SHR010HRORG example:
+  AsOfDate (JSON: "As_of_Date") — 1 distinct value per run
+  Stored in Stg_Peoplesoft_SHR010HRORG; excluded from Peoplesoft_SHR010HRORG
