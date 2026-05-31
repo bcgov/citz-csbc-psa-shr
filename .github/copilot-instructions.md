@@ -13,40 +13,181 @@ Use it as the reference implementation for all new APIs.
 - **SQL scripts** (`citz-shr-psa-sql/PeopleSoftAPI/`): DDL, MERGE proc, reporting
 - **Schema files** (`schemas/`): JSON schema snapshots for DDL generation
 
+
 ## Continuous Improvement Rule
-Whenever a bug is found and fixed in any script, **also update the relevant
-instruction and skill files** in the same response — without being asked.
-- Bugs in R scripts → update `.github/instructions/r-scripts.instructions.md`
-  and `.github/skills/psa-api-onboarding/SKILL.md`
-- Bugs in SQL → update `.github/instructions/sql.instructions.md`
-- New patterns or anti-patterns discovered → update the relevant file
-This keeps future onboarding from repeating the same mistakes.
+Whenever a bug or data anomaly is identified:
+
+Fix the issue in code (R, SQL, MERGE)
+Identify the root cause:
+
+Schema mismatch
+API behavior
+Data anomaly
+Report artifact
+
+
+Update:
+
+.github/instructions/*
+.github/skills/*
+
+
+Ensure future APIs DO NOT repeat the issue
+
+This repository must continuously improve with each onboarding.
+
+## Business Key Identification (CRITICAL)
+
+NEVER assume a single-column key
+ALWAYS validate uniqueness using:
+
+psa_key_discovery.R
+SQL validation queries
+
+
+Keys must represent business identity, not attributes
+
+# Rules
+
+Identity fields → candidates (e.g., IDs)
+Attributes → NOT part of key (e.g., Status, Type, Reason fields)
+Report artifacts MUST NOT drive key design
+
+# API Patterns
+Lookup API → Single-column key
+Relational entity → Composite key
+Report-style API → Composite key + dedup
+SO001HRORG Example
+Correct key → PosPosition + EmplId
+Incorrect key → PosPosition + EmplId + FutureTermReason
+Reason:
+FutureTermReason is an attribute (changes over time). Using it breaks MERGE logic.
 
 ## JSON Field Naming
-- API responses may use snake_case, spaces, or lowercase field names
-- R ETL scripts MUST rename JSON fields to PascalCase SQL column names
-- Use `dplyr::rename(any_of(rename_map))` with a named character vector — never bare `rename()`
-- Document original JSON names as comments in staging DDL
+
+API responses may use snake_case, spaces, or lowercase field names
+R ETL scripts MUST rename JSON fields to PascalCase SQL column names
+
+# Rules
+
+Use rename(any_of(rename_map))
+NEVER use bare rename()
+Always use a mapping vector
+
+Example:
+rename_map <- c(
+PosRole = "pos role"
+)
+df <- df |>
+dplyr::rename(any_of(rename_map))
+
+Document original JSON names in staging DDL
+
 
 ## HTTP Method
-- Some PSA APIs require GET, others require POST
-- The schema discovery tool (`psa_schema_discovery.R`) auto-detects the method
-- ETL scripts MUST use the method that succeeded during discovery
-- Document the method in the `_discovery` section of the schema JSON
+
+APIs may require GET or POST
+psa_schema_discovery.R determines the method
+
+# Rules
+
+Use the method that succeeds
+Document it in the schema
+
 
 ## Report Metadata Columns
-- Some APIs return per-run metadata (e.g., ReportName, SubTitle, RunDate)
-- These values change on EVERY API call and are NOT meaningful data
-- Rules:
-  - INCLUDE in staging table (for traceability)
-  - EXCLUDE from target table (prevents false updates)
-  - EXCLUDE from audit table (not meaningful change data)
-  - EXCLUDE from MERGE comparison (prevents false UPDATE on every row)
-  - EXCLUDE from HASHBYTES calculation
+Examples: ReportName, SubTitle, RunDate
+# Rules
+Include in staging
+Exclude from target
+Exclude from audit
+Exclude from MERGE comparisons
+Exclude from HASHBYTES
 
-## Folder Structure (per API)
-Each API lives in its own folder named exactly after the API:
+## Staging Table Design
+Staging tables are landing zones, not authoritative tables
+# Rules
 
+No primary key for report-style APIs
+Allow NULLs where API allows NULLs
+Accept duplicates
+Do not enforce business rules
+
+# SO001HRORG Pattern
+
+No PK
+PosPosition allows NULL
+Dedup done in R
+
+
+## Composite Key Handling
+When no single column is unique:
+# Rules
+
+Use columns that represent identity
+Do NOT include attributes
+Normalize NULL values if needed
+
+Example:
+PRIMARY KEY (PosPosition, EmplId)
+
+## MERGE ON Clause (Composite Keys) 
+# Use:
+tgt.PosPosition = src.PosPosition
+AND ISNULL(tgt.EmplId, '') = ISNULL(src.EmplId, '')
+# Rules
+
+NULL-safe comparisons required
+Include all key columns in HASHBYTES
+Do NOT include attributes
+
+
+## Deduplication (Report-Style APIs)
+Some APIs return duplicate rows due to reporting artifacts
+# Rules
+
+Deduplicate in R before loading
+Deduplicate only on business key
+Keep last row
+Log duplicates removed
+Never dedup on attributes
+
+Pattern
+Drop invalid PosPosition rows
+Normalize EmplId NULL to empty string
+Deduplicate using PosPosition + EmplId
+Log counts
+
+## Known Pattern: SO001HRORG
+Total rows: 3795
+PosPosition not unique (71 duplicates)
+PosPosition + EmplId → 3791 unique
+Remaining 4 duplicates
+Root Cause
+Same employee and position
+Different FutureTermReason values:
+
+Redundant
+Retired
+
+This is a reporting artifact
+Final Decision
+Business key = PosPosition + EmplId
+FutureTermReason is NOT part of key
+Deduplicate before loading
+
+## Sanity Check — Business Key
+After dedup:
+TotalRows must equal DISTINCT business key rows
+If duplicates remain:
+
+Explain them
+Quantify them
+Document them
+
+If unexplained → STOP
+
+## Folder Structure
 ```text
 PeopleSoftAPI/<exact_api_name>/
 ├── ddl/
@@ -60,3 +201,4 @@ PeopleSoftAPI/<exact_api_name>/
 │   └── ad_hoc/
 └── schemas/
     └── <api_name>_schema.json
+    

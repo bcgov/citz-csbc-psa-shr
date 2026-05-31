@@ -104,9 +104,10 @@ CREATE TABLE dbo.Stg_Peoplesoft_SO001HRORG
     -- to prevent false UPDATE events on every row)
     ReportName           NVARCHAR(255) NULL,   -- JSON: "report name"
     SubTitle             NVARCHAR(255) NULL,   -- JSON: "sub title"
-    RunDate              NVARCHAR(100) NULL,   -- JSON: "run date"
-
-    CONSTRAINT PK_Stg_Peoplesoft_SO001HRORG
-        PRIMARY KEY (PosPosition)
+    RunDate              NVARCHAR(100) NULL    -- JSON: "run date"
+    -- NOTE: no PRIMARY KEY on staging. The SO001HRORG API can return multiple
+    -- rows per PosPosition (e.g. acting + substantive incumbent). Deduplication
+    -- on PosPosition happens in the R ETL script before the staging INSERT.
+    -- The MERGE proc requires unique source keys; enforce uniqueness in R, not here.
 );
 GO

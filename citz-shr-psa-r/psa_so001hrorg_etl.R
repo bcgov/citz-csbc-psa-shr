@@ -380,6 +380,21 @@ df <- df |>
 # Select only staging columns in schema order
 df <- df[, expected]
 
+# --- Deduplicate on business key before staging load -------------------------
+# The SO001HRORG report can return multiple rows per position (e.g. an acting
+# employee and the substantive incumbent share the same pos_position).
+# The MERGE proc requires a unique source key; duplicate staging rows would
+# cause a SQL MERGE error. Keep the last row per PosPosition (last row in the
+# PeopleSoft report order tends to reflect the most current assignment).
+dup_count <- sum(duplicated(df$PosPosition))
+if (dup_count > 0) {
+  warning(paste(
+    dup_count, "duplicate PosPosition rows removed before staging load.",
+    "The API may return multiple incumbents per position."
+  ))
+  df <- df[!duplicated(df$PosPosition, fromLast = TRUE), ]
+}
+
 # --- Load to SQL Server staging table ----------------------------------------
 
 con <- dbConnect(

@@ -1,41 +1,272 @@
----
 description: "Run sanity check on generated API onboarding files"
----
-
-# Sanity Check — PSA API Onboarding
-
+Sanity Check — PSA API Onboarding
 Review the generated DDL and R ETL files for a newly onboarded API.
 
-## Instructions
+Instructions
+1. Identify API Type (CRITICAL)
+Determine which type the API is:
 
-1. Read the staging table DDL and verify:
-   - Table name follows `Stg_Peoplesoft_<EntityName>` convention
-   - Business key is NOT NULL with PRIMARY KEY
-   - Column types match the JSON schema
+Lookup API → single key
+Relational API → composite key
+Report-style API → composite key + dedup
 
-2. Read the target table DDL and verify:
-   - Has `IsActive`, `CreatedUtc`, `LastUpdatedUtc`
-   - Report metadata columns are EXCLUDED
-   - Primary key matches staging
+If report-style:
 
-3. Read the audit table DDL and verify:
-   - Has `RunId`, `AuditDtmUtc`, `ActionType`
-   - Has Old/New pairs for every target data column
-   - Report metadata columns are EXCLUDED
+Staging MUST NOT have PK
+Dedup MUST exist in R
 
-4. Read the MERGE proc and verify:
-   - All 4 guardrails present (THROW 51000-51003)
-   - MERGE ON clause uses correct business key
-   - Report metadata excluded from comparison
-   - HASHBYTES separator is '|'
-   - OUTPUT has correct ActionType CASE logic
-   - Transaction + TRY/CATCH present
 
-5. Read the R ETL script and verify:
-   - API name and HTTP method are correct
-   - Column rename mapping is complete (if needed)
-   - Expected columns match staging DDL
-   - char_cols and int_cols match SQL types
-   - No credentials or server names in code
+2. Staging Table Validation (ddl/01_stage.sql)
+Verify:
 
-Report any issues found with specific line references.
+Table name follows:
+Stg_Peoplesoft_
+
+For Lookup / Clean APIs:
+
+Primary key exists
+Key column is NOT NULL
+
+For Report-Style APIs (e.g., SO001HRORG):
+
+NO primary key
+Key columns may allow NULL (temporarily)
+Comment explains dedup happens in R
+
+
+3. Business Key Validation (CRITICAL)
+Verify correct business key is used:
+Rules:
+
+Key represents identity
+NOT attributes
+NOT report metadata
+
+For SO001HRORG:
+
+✅ Correct: PosPosition + EmplId
+❌ Reject:
+
+PosPosition only
+PosPosition + FutureTermReason
+
+
+
+
+4. Target Table Validation (ddl/02_target.sql)
+Verify:
+
+Table: Peoplesoft_
+Columns match staging (excluding metadata)
+Has:
+
+IsActive
+CreatedUtc
+LastUpdatedUtc
+
+
+
+Key Rules:
+
+Composite key enforced if required
+
+Example:
+PRIMARY KEY (PosPosition, EmplId)
+
+PosPosition NOT NULL
+EmplId NOT NULL DEFAULT ''
+
+
+5. Audit Table Validation (ddl/03_audit.sql)
+Verify:
+
+Has:
+
+RunId
+AuditDtmUtc
+ActionType
+
+
+
+Business Key:
+
+Includes ALL key columns
+(e.g., PosPosition AND EmplId)
+
+Data Tracking:
+
+Old/New for every data column
+RowHash columns present
+
+Exclusions:
+
+Report metadata NOT included
+
+
+6. MERGE Procedure Validation (ddl/04_merge_proc.sql)
+Verify ALL of the following:
+Guardrails present:
+
+THROW 51000 (empty staging)
+THROW 51001 (NULL key)
+THROW 51002 (row count variance)
+THROW 51003 (soft delete cap)
+
+
+MERGE ON clause:
+Must match business key:
+Example:
+tgt.PosPosition = src.PosPosition
+AND ISNULL(tgt.EmplId, '') = ISNULL(src.EmplId, '')
+Rules:
+
+All key columns included
+NULL-safe logic used where required
+NO attribute columns included
+NO metadata columns included
+
+
+MERGE logic:
+
+MATCHED → UPDATE
+NOT MATCHED → INSERT
+NOT MATCHED BY SOURCE → soft delete
+
+
+HASHBYTES:
+
+
+Includes:
+
+All data columns
+All key columns
+
+
+
+Excludes:
+
+Report metadata
+Audit/system fields
+
+
+
+
+Additional checks:
+
+WITH (HOLDLOCK) used
+;MERGE prefix present
+OUTPUT clause present
+ActionType correctly derived
+Transaction + TRY/CATCH exists
+Summary SELECT at end
+
+
+7. R ETL Script Validation
+Verify:
+API Configuration:
+
+api_name correct
+HTTP method matches discovery (GET or POST)
+
+
+Column Handling:
+
+rename(any_of(...)) used
+expected matches staging
+missing columns backfilled as NA
+
+
+Business Key Handling (CRITICAL)
+
+Primary identity column validated (hard stop if missing)
+Secondary key columns normalized
+
+For SO001HRORG:
+
+
+PosPosition:
+
+must NOT be NULL
+rows dropped if NULL
+
+
+
+EmplId:
+
+NULL → replaced with ""
+
+
+
+
+Deduplication (MANDATORY for report APIs)
+Verify:
+
+Dedup happens BEFORE dbWriteTable
+Dedup uses ONLY business key
+
+Example:
+PosPosition + EmplId
+
+Uses fromLast = TRUE
+Logs number of duplicates removed
+
+
+Reject if:
+
+Dedup uses attribute columns
+Dedup missing
+Dedup happens after load
+
+
+8. Report Metadata Handling
+Verify:
+Metadata columns (e.g., ReportName, SubTitle, RunDate):
+
+Present in staging
+NOT in target
+NOT in audit
+NOT in MERGE ON
+NOT in HASHBYTES
+
+
+9. Data Integrity Validation
+Verify:
+
+Staging data can contain duplicates
+Target data MUST be unique on business key
+MERGE source MUST be unique (after dedup)
+
+
+10. SO001HRORG Specific Checks
+Verify:
+
+Composite key used: PosPosition + EmplId
+FutureTermReason NOT part of key
+Dedup removes only 4 rows (known artifact)
+Staging has no PK
+R script contains dedup logic
+
+
+11. Cross-File Consistency
+Verify:
+
+Column names match across:
+
+staging
+R script
+MERGE
+
+
+Key columns consistent everywhere
+HASHBYTES columns match MERGE comparisons
+
+
+Output Requirement
+Report:
+
+Any violations found
+Exact issue
+File name
+Line reference if possible
+
+Do NOT suggest changes without first identifying issues clearly.

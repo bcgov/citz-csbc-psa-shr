@@ -1,32 +1,188 @@
----
 applyTo: "**/*.sql"
----
+SQL Coding Standards
 
-# SQL Coding Standards
+Use DATETIME2(0) for timestamps, never DATETIME
+Use SYSUTCDATETIME() for all timestamps (UTC)
+Use NVARCHAR for string columns, never VARCHAR (Unicode support)
+Use ISNULL(col, default) for NULL-safe comparisons in MERGE
+Terminate MERGE statements with semicolon
+Prefix MERGE with semicolon: ;MERGE
+Always include SET NOCOUNT ON and SET XACT_ABORT ON in stored procedures
+Use WITH (HOLDLOCK) on MERGE target for concurrency safety
+Use CREATE OR ALTER PROCEDURE for idempotent deployments
+Include GO after procedure definitions
+Never use physical DELETE in MERGE — use soft delete (IsActive = 0)
+SQL file naming: lowercase with double underscore separator (entity__purpose.sql)
 
-- Use `DATETIME2(0)` for timestamps, never `DATETIME`
-- Use `SYSUTCDATETIME()` for all timestamps (UTC)
-- Use `NVARCHAR` for string columns, never `VARCHAR` (Unicode support)
-- Use `ISNULL(col, default)` for NULL-safe comparisons in MERGE
-- Terminate MERGE statements with semicolon
-- Prefix MERGE with semicolon: `;MERGE`
-- Always include `SET NOCOUNT ON` and `SET XACT_ABORT ON` in stored procedures
-- Use `WITH (HOLDLOCK)` on MERGE target for concurrency safety
-- Use `CREATE OR ALTER PROCEDURE` for idempotent deployments
-- Include `GO` after procedure definitions
-- Never use physical `DELETE` in MERGE — use soft delete (`IsActive = 0`)
-- SQL file naming: lowercase with double underscore separator (`entity__purpose.sql`)
 
-## Report Metadata Columns
-- Some APIs include per-run report metadata (e.g., ReportName, RunDate)
-- These MUST be:
-  - Present in staging table (for data lineage)
-  - ABSENT from target table
-  - ABSENT from audit table
-  - ABSENT from MERGE comparison clauses
-  - ABSENT from HASHBYTES calculations
-- Add a comment in staging DDL explaining why they are excluded downstream
+Staging Table Design (CRITICAL)
+Staging tables are landing zones, not authoritative tables.
+Rules
 
-## JSON Field Name Comments
-- When JSON field names differ from SQL column names, add inline comments
-  in staging DDL: `PosRole NVARCHAR(255) NULL, -- JSON: "pos role"`
+DO NOT enforce PRIMARY KEY constraints for report-style APIs
+Allow NULL values where API may return NULL
+Accept duplicate rows
+Do NOT enforce business rules in staging
+
+SO001HRORG Pattern
+
+Remove PK constraint from staging table
+PosPosition allows NULL
+Duplicates are handled in R, not SQL
+
+
+Target Table Design
+Rules
+
+Business keys MUST be enforced in target table
+Use PRIMARY KEY or UNIQUE constraint
+Normalize NULL key columns if required
+
+Composite Key Example
+PRIMARY KEY (PosPosition, EmplId)
+Important
+
+PosPosition → NOT NULL
+EmplId → NOT NULL with DEFAULT '' (handles vacant positions)
+
+
+Composite Business Keys
+When a single column is not unique:
+Rules
+
+Use multiple columns representing identity
+DO NOT include attributes
+DO NOT include report metadata
+
+SO001HRORG Example
+Correct key:
+PosPosition + EmplId
+Incorrect key:
+PosPosition + EmplId + FutureTermReason
+Reason:
+FutureTermReason is an attribute that changes over time and does not define identity
+
+MERGE ON Clause (CRITICAL)
+For composite keys:
+;MERGE target WITH (HOLDLOCK) AS tgt
+USING source AS src
+ON tgt.PosPosition = src.PosPosition
+AND ISNULL(tgt.EmplId, '') = ISNULL(src.EmplId, '')
+Rules
+
+Use NULL-safe comparison for nullable keys
+Include ALL key columns
+Do NOT include attribute columns
+Do NOT include report metadata columns
+
+
+HASHBYTES Usage
+When detecting changes:
+Rules
+
+Include ALL business key columns
+Include ALL tracked data columns
+EXCLUDE:
+
+report metadata fields
+audit/control columns
+
+
+
+
+Soft Delete Pattern
+Rules
+
+Never hard delete rows
+Use IsActive flag
+
+Pattern
+WHEN NOT MATCHED BY SOURCE THEN
+UPDATE SET IsActive = 0, LastUpdatedUtc = SYSUTCDATETIME()
+
+Report Metadata Columns
+Examples: ReportName, SubTitle, RunDate
+Rules
+
+Present in staging table (for lineage)
+NOT in target table
+NOT in audit table
+NOT in MERGE logic
+NOT in HASHBYTES
+
+Reason:
+These fields change every API run and cause false updates
+
+Audit Table Design
+Rules
+
+Track business key columns (including composite keys)
+Track Old/New values
+Capture Insert/Update/Delete actions
+
+SO001HRORG
+
+Include both PosPosition and EmplId as key columns
+Exclude report metadata
+
+
+JSON Field Name Comments
+When JSON field names differ from SQL column names:
+Example:
+PosRole NVARCHAR(255) NULL, -- JSON: "pos role"
+Rules
+
+Always document original JSON field
+Only required in staging DDL
+
+
+Data Integrity Rules
+Required Validation
+
+Target table MUST enforce business key uniqueness
+MERGE source MUST be unique on business key
+
+If duplicates exist:
+
+MUST be resolved BEFORE MERGE
+DO NOT attempt to resolve inside SQL MERGE
+
+
+Known Pattern: SO001HRORG
+Dataset
+3795 rows
+Key Findings
+
+PosPosition not unique (71 duplicates)
+PosPosition + EmplId = 3791 unique
+4 duplicates remain
+
+Root Cause
+Same employee + position
+Different FutureTermReason values:
+
+Redundant
+Retired
+
+This is a PeopleSoft reporting artifact
+Final Decision
+
+Business key = PosPosition + EmplId
+Deduplicate before staging load
+Do NOT include FutureTermReason in key
+Staging table must not enforce PK
+
+
+Sanity Check Before Deployment
+Before running MERGE:
+
+Source dataset must be unique on business key
+Target table must enforce business key
+Any duplicates must be:
+
+explained
+documented
+
+
+
+If not → STOP
