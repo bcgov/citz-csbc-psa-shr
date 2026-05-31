@@ -1,7 +1,8 @@
 CREATE TABLE dbo.Stg_Peoplesoft_SO001HRORG
 (
-    -- Business key
-    PosPosition          NVARCHAR(20)  NOT NULL,
+    -- Business key (composite: PosPosition + EmplId)
+    -- PosPosition is NULL for some API rows; those are dropped in R before load.
+    PosPosition          NVARCHAR(20)  NULL,
 
     -- Org hierarchy
     Organization         NVARCHAR(255) NULL,
@@ -106,8 +107,11 @@ CREATE TABLE dbo.Stg_Peoplesoft_SO001HRORG
     SubTitle             NVARCHAR(255) NULL,   -- JSON: "sub title"
     RunDate              NVARCHAR(100) NULL    -- JSON: "run date"
     -- NOTE: no PRIMARY KEY on staging. The SO001HRORG API can return multiple
-    -- rows per PosPosition (e.g. acting + substantive incumbent). Deduplication
-    -- on PosPosition happens in the R ETL script before the staging INSERT.
-    -- The MERGE proc requires unique source keys; enforce uniqueness in R, not here.
+    -- rows per (PosPosition, EmplId) composite key due to FutureTermReason
+    -- reporting artifacts (e.g. Redundant vs Retired for the same position+employee).
+    -- Deduplication on the composite key (PosPosition + EmplId) is performed in
+    -- the R ETL script before the staging INSERT. NULL PosPosition rows are also
+    -- dropped in R. The MERGE proc requires unique composite source keys;
+    -- enforce uniqueness in R, not here.
 );
 GO

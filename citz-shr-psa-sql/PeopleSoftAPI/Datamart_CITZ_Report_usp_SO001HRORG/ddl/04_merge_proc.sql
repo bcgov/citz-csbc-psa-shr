@@ -61,7 +61,8 @@ BEGIN
             SELECT @WouldSoftDelete = COUNT(*)
             FROM dbo.Peoplesoft_SO001HRORG tgt
             LEFT JOIN dbo.Stg_Peoplesoft_SO001HRORG src
-                ON src.PosPosition = tgt.PosPosition
+                ON  src.PosPosition         = tgt.PosPosition
+                AND ISNULL(src.EmplId, '') = ISNULL(tgt.EmplId, '')
             WHERE src.PosPosition IS NULL
               AND tgt.IsActive = 1;
         END
@@ -84,7 +85,8 @@ BEGIN
         --------------------------------------------------------------------
         ;MERGE dbo.Peoplesoft_SO001HRORG WITH (HOLDLOCK) AS tgt
         USING dbo.Stg_Peoplesoft_SO001HRORG AS src
-            ON tgt.PosPosition = src.PosPosition
+            ON  tgt.PosPosition         = src.PosPosition
+            AND ISNULL(tgt.EmplId, '') = ISNULL(src.EmplId, '')
 
         -- UPDATE or REACTIVATE when matched and any data column differs
         WHEN MATCHED AND (
@@ -304,7 +306,8 @@ BEGIN
                 WHEN $action = 'UPDATE' AND deleted.IsActive = 0 AND inserted.IsActive = 1 THEN 'REACTIVATE'
                 ELSE $action
             END AS ActionType,
-            COALESCE(inserted.PosPosition, deleted.PosPosition) AS PosPosition,
+            COALESCE(inserted.PosPosition, deleted.PosPosition)           AS PosPosition,
+            COALESCE(inserted.EmplId,      deleted.EmplId)                AS EmplId,
 
             -- Old row hash
             HASHBYTES('SHA2_256', CONCAT_WS('|',
@@ -561,7 +564,7 @@ BEGIN
 
         INTO dbo.Peoplesoft_SO001HRORG_Audit
         (
-            RunId, ActionType, PosPosition,
+            RunId, ActionType, PosPosition, EmplId,
             OldRowHash, NewRowHash,
             OldIsActive, NewIsActive,
             OldOrganization, OldLevel1, OldLevel2, OldLevel3,

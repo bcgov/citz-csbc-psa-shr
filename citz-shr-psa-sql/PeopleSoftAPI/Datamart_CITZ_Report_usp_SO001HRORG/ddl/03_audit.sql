@@ -7,6 +7,7 @@ CREATE TABLE dbo.Peoplesoft_SO001HRORG_Audit
 
     ActionType       VARCHAR(12)      NOT NULL,  -- INSERT / UPDATE / SOFT_DELETE / REACTIVATE
     PosPosition      NVARCHAR(20)     NOT NULL,
+    EmplId           NVARCHAR(20)     NOT NULL,  -- '' for vacant positions; part of composite key
 
     OldRowHash       VARBINARY(32)    NULL,
     NewRowHash       VARBINARY(32)    NULL,

@@ -1,6 +1,6 @@
 CREATE TABLE dbo.Peoplesoft_SO001HRORG
 (
-    -- Business key
+    -- Business key (composite: PosPosition + EmplId)
     PosPosition          NVARCHAR(20)  NOT NULL,
 
     -- Org hierarchy
@@ -54,7 +54,8 @@ CREATE TABLE dbo.Peoplesoft_SO001HRORG
     StandardHours        NVARCHAR(20)  NULL,
     Base                 NVARCHAR(10)  NULL,
     Name                 NVARCHAR(255) NULL,
-    EmplId               NVARCHAR(20)  NULL,
+    EmplId               NVARCHAR(20)  NOT NULL
+        CONSTRAINT DF_Peoplesoft_SO001HRORG_EmplId DEFAULT (''),  -- '' for vacant positions
     EmplStatus           NVARCHAR(50)  NULL,
     Appt                 NVARCHAR(50)  NULL,
     Age                  INT           NULL,
@@ -110,7 +111,7 @@ CREATE TABLE dbo.Peoplesoft_SO001HRORG
     LastUpdatedUtc       DATETIME2(0)  NOT NULL
         CONSTRAINT DF_Peoplesoft_SO001HRORG_LastUpdatedUtc DEFAULT SYSUTCDATETIME(),
 
-    CONSTRAINT PK_Peoplesoft_SO001HRORG PRIMARY KEY (PosPosition)
+    CONSTRAINT PK_Peoplesoft_SO001HRORG PRIMARY KEY (PosPosition, EmplId)
 );
 GO
 

@@ -380,19 +380,39 @@ df <- df |>
 # Select only staging columns in schema order
 df <- df[, expected]
 
-# --- Deduplicate on business key before staging load -------------------------
-# The SO001HRORG report can return multiple rows per position (e.g. an acting
-# employee and the substantive incumbent share the same pos_position).
-# The MERGE proc requires a unique source key; duplicate staging rows would
-# cause a SQL MERGE error. Keep the last row per PosPosition (last row in the
-# PeopleSoft report order tends to reflect the most current assignment).
-dup_count <- sum(duplicated(df$PosPosition))
+# --- Drop rows with NULL PosPosition -----------------------------------------
+# Vacant positions carry EmplId = '' (normalized below), NOT a NULL PosPosition.
+# NULL PosPosition rows are data anomalies that cannot be keyed in the MERGE;
+# drop them with a warning rather than letting the SQL guardrail hard-fail.
+invalid_pos_count <- sum(is.na(df$PosPosition) | df$PosPosition == "")
+if (invalid_pos_count > 0) {
+  warning(paste(
+    invalid_pos_count, "row(s) with NULL/blank PosPosition dropped (data anomaly from API)."
+  ))
+  df <- df[!(is.na(df$PosPosition) | df$PosPosition == ""), ]
+}
+
+# --- Normalize EmplId NULL -> "" (vacant positions have no incumbent) ---------
+# The composite business key is (PosPosition, EmplId).  Vacant positions return
+# NULL for EmplId.  The MERGE ON clause uses ISNULL(tgt.EmplId,'') = ISNULL(src.EmplId,'')
+# so staging must store '' (not NULL) to match the target's DEFAULT ('').
+df$EmplId <- ifelse(is.na(df$EmplId), "", df$EmplId)
+
+# --- Deduplicate on composite business key before staging load ---------------
+# Business key: PosPosition + EmplId (composite).
+# The API returns ~4 duplicate (PosPosition, EmplId) pairs caused by the
+# FutureTermReason reporting artifact (e.g. 'Redundant' vs 'Retired' for the
+# same position+employee).  FutureTermReason is an attribute, NOT part of the
+# key.  Keep the last row per composite key (last row in PeopleSoft report
+# order) and log the count removed.
+composite_key <- paste(df$PosPosition, df$EmplId, sep = "|")
+dup_count <- sum(duplicated(composite_key))
 if (dup_count > 0) {
   warning(paste(
-    dup_count, "duplicate PosPosition rows removed before staging load.",
-    "The API may return multiple incumbents per position."
+    dup_count, "duplicate (PosPosition, EmplId) rows removed before staging load.",
+    "Cause: FutureTermReason reporting artifact (attribute, not part of business key)."
   ))
-  df <- df[!duplicated(df$PosPosition, fromLast = TRUE), ]
+  df <- df[!duplicated(composite_key, fromLast = TRUE), ]
 }
 
 # --- Load to SQL Server staging table ----------------------------------------
