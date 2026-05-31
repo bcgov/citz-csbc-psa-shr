@@ -11,6 +11,16 @@ applyTo: "**/*.R"
 - Handle OData pagination with fallback: `@odata.nextLink` then `odata.nextLink`
 - Normalize empty JSON objects `{}` to `NA`
 - **Never use bare `dplyr::rename(NewName = old_name, ...)` for JSON field renaming.** Build a named character vector `c(NewName = "old_name")` and apply it with `dplyr::rename(any_of(rename_map))`. `any_of()` silently skips columns that are absent from the data frame; bare `rename()` throws a hard error. Fields that are always `{}` (empty object) in the API response can be dropped by `bind_rows()`, and live responses may omit fields present in the schema sample.
+- **After renaming, backfill absent expected columns as `NA` — do NOT hard-stop.** `bind_rows()` silently drops columns where every row was `{}`, so those fields are never in `df` even if they appear in the schema. The correct pattern:
+  ```r
+  missing_cols <- setdiff(expected, names(df))
+  if (length(missing_cols) > 0) {
+    warning(paste("Columns absent from API response (backfilled as NA):",
+                  paste(missing_cols, collapse = ", ")))
+    df[missing_cols] <- NA
+  }
+  ```
+  Only hard-stop if the **business key** column is missing — that is unrecoverable.
 - Read credentials from `Sys.getenv()` only
 - Read config from `.Renviron.prod` / `.Renviron.test` via `readRenviron()`
 - Validate required environment variables at script start with `stop()` on missing

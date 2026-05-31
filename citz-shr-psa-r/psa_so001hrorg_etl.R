@@ -318,9 +318,21 @@ expected <- c(
   "ReportName", "SubTitle", "RunDate"
 )
 
+# Hard-stop only if the business key is missing — that is unrecoverable.
+if (!"PosPosition" %in% names(df)) {
+  stop("Business key column PosPosition is missing from the API response.")
+}
+
+# Backfill any other expected columns absent from the API response.
+# bind_rows() silently drops columns where every row returned {} (empty object),
+# so those fields never land in df. We still need them in staging as NA.
 missing_cols <- setdiff(expected, names(df))
 if (length(missing_cols) > 0) {
-  stop(paste("Missing expected columns:", paste(missing_cols, collapse = ", ")))
+  warning(paste(
+    "Columns absent from API response (all rows were {} — backfilled as NA):",
+    paste(missing_cols, collapse = ", ")
+  ))
+  df[missing_cols] <- NA
 }
 
 # Normalize any remaining list-columns to atomic values

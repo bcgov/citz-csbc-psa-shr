@@ -13,10 +13,19 @@ Use it as the reference implementation for all new APIs.
 - **SQL scripts** (`citz-shr-psa-sql/PeopleSoftAPI/`): DDL, MERGE proc, reporting
 - **Schema files** (`schemas/`): JSON schema snapshots for DDL generation
 
+## Continuous Improvement Rule
+Whenever a bug is found and fixed in any script, **also update the relevant
+instruction and skill files** in the same response — without being asked.
+- Bugs in R scripts → update `.github/instructions/r-scripts.instructions.md`
+  and `.github/skills/psa-api-onboarding/SKILL.md`
+- Bugs in SQL → update `.github/instructions/sql.instructions.md`
+- New patterns or anti-patterns discovered → update the relevant file
+This keeps future onboarding from repeating the same mistakes.
+
 ## JSON Field Naming
 - API responses may use snake_case, spaces, or lowercase field names
 - R ETL scripts MUST rename JSON fields to PascalCase SQL column names
-- Use `dplyr::rename()` with explicit mapping (not automatic conversion)
+- Use `dplyr::rename(any_of(rename_map))` with a named character vector — never bare `rename()`
 - Document original JSON names as comments in staging DDL
 
 ## HTTP Method

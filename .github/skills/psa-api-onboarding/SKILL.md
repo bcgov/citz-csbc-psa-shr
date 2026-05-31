@@ -94,7 +94,18 @@ Always use `Datamart_CITZ_Report_vw_Dept_Org_Levels` as the gold standard:
   the keys under `value[0]`, and use those exact strings as the right-hand side of the
   rename map. Fields with spaces (e.g. `"pos role"`, `"maildrop city"`) must be quoted
   strings in the vector (no backticks needed in the vector form).
-- If `http_method` in the schema `_discovery` block is `POST`, add `req_method("POST")`
+- **After renaming, backfill absent columns as `NA` — do NOT hard-stop on missing columns.**
+  `bind_rows()` drops columns where every row in the response was `{}` (empty object).
+  Those SQL column names will be absent from `df` after the rename. Backfill them:
+  ```r
+  if (!"<BusinessKey>" %in% names(df)) stop("Business key missing.")
+  missing_cols <- setdiff(expected, names(df))
+  if (length(missing_cols) > 0) {
+    warning(paste("Columns absent (backfilled as NA):", paste(missing_cols, collapse=", ")))
+    df[missing_cols] <- NA
+  }
+  ```
+- If `method` in the schema `_discovery` block is `POST`, add `req_method("POST")`
   to the `request()` chain in `fetch_page()`.
 
 ## Step 8: JSON Field Name Mapping (if needed)
