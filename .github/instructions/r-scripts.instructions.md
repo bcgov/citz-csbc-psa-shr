@@ -191,3 +191,42 @@ Licensing
 
 Include Apache 2.0 header at top of every script
 
+
+Handling Dropped Records (Data Quality)
+
+When rows are excluded from the main pipeline due to:
+- Invalid business key (NULL/blank PosPosition)
+- Duplicate composite keys (e.g. FutureTermReason artifact)
+
+Rules
+- Capture dropped rows into a dataframe BEFORE removing them from df
+- Add a DropReason column: 'NULL_POSPOSITION' or 'DUPLICATE_COMPOSITE_KEY'
+- Combine into dropped_df using rbind()
+- Load dropped_df into Stg_<ApiName>_Dropped via dbWriteTable(append = TRUE)
+- Wrap the load in tryCatch — failure must NOT block the main pipeline
+- Log count of dropped rows by reason using cat()
+- Do NOT truncate the dropped table between runs (append-only history)
+
+Pattern
+null_pos_mask <- is.na(df$PosPosition) | df$PosPosition == ""
+null_pos_rows <- df[null_pos_mask, ]
+null_pos_rows$DropReason <- "NULL_POSPOSITION"
+df <- df[!null_pos_mask, ]
+
+composite_key <- paste(df$PosPosition, df$EmplId, sep = "|")
+dup_mask      <- duplicated(composite_key, fromLast = TRUE)
+dup_rows      <- df[dup_mask, ]
+dup_rows$DropReason <- "DUPLICATE_COMPOSITE_KEY"
+df <- df[!dup_mask, ]
+
+dropped_df <- rbind(null_pos_rows, dup_rows)
+
+tryCatch({
+  dbWriteTable(con,
+    name = Id(schema = "dbo", table = "Stg_<ApiName>_Dropped"),
+    value = dropped_df, append = TRUE, row.names = FALSE)
+  cat("Dropped rows persisted:", nrow(dropped_df), "\n")
+}, error = function(e) {
+  warning(paste("Best-effort quality log failed:", conditionMessage(e)))
+})
+

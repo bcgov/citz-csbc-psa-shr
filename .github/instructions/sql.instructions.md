@@ -148,6 +148,30 @@ MUST be resolved BEFORE MERGE
 DO NOT attempt to resolve inside SQL MERGE
 
 
+Dropped Records Tables
+
+For every report-style API, create a parallel dropped-records staging table:
+
+Naming: Stg_<ApiName>_Dropped
+File:   ddl/05_dropped_stage.sql
+
+Structure
+- DropReason    NVARCHAR(100) NOT NULL  -- 'NULL_POSPOSITION' | 'DUPLICATE_COMPOSITE_KEY'
+- LoadDtmUtc   DATETIME2(0)  NOT NULL  DEFAULT SYSUTCDATETIME()
+- All original staging columns (same schema as Stg_<ApiName>)
+
+Rules
+- No primary key (append-only across ETL runs)
+- Allow NULLs in all data columns (PosPosition may be NULL for NULL_POSPOSITION rows)
+- Do NOT truncate between runs — historical records are required for trend analysis
+- Index on (DropReason, LoadDtmUtc) for reporting query performance
+
+Purpose
+Transparency for upstream API data issue reporting and SHR communication.
+Dropped rows are captured in R before removal and appended via dbWriteTable.
+Create reporting/audit/audit__dropped_records_summary.sql for consumer queries.
+
+
 Known Pattern: SO001HRORG
 Dataset
 3795 rows

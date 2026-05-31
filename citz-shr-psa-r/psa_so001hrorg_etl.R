@@ -380,16 +380,20 @@ df <- df |>
 # Select only staging columns in schema order
 df <- df[, expected]
 
-# --- Drop rows with NULL PosPosition -----------------------------------------
+# --- Capture and drop rows with NULL/blank PosPosition -----------------------
 # Vacant positions carry EmplId = '' (normalized below), NOT a NULL PosPosition.
-# NULL PosPosition rows are data anomalies that cannot be keyed in the MERGE;
-# drop them with a warning rather than letting the SQL guardrail hard-fail.
-invalid_pos_count <- sum(is.na(df$PosPosition) | df$PosPosition == "")
-if (invalid_pos_count > 0) {
+# NULL PosPosition rows are data anomalies that cannot be keyed in the MERGE.
+# Capture them for quality tracking BEFORE dropping from the main pipeline.
+null_pos_mask <- is.na(df$PosPosition) | df$PosPosition == ""
+null_pos_rows <- df[null_pos_mask, ]
+null_pos_rows$DropReason <- "NULL_POSPOSITION"
+
+if (nrow(null_pos_rows) > 0) {
   warning(paste(
-    invalid_pos_count, "row(s) with NULL/blank PosPosition dropped (data anomaly from API)."
+    nrow(null_pos_rows),
+    "row(s) with NULL/blank PosPosition captured for quality log and removed from pipeline."
   ))
-  df <- df[!(is.na(df$PosPosition) | df$PosPosition == ""), ]
+  df <- df[!null_pos_mask, ]
 }
 
 # --- Normalize EmplId NULL -> "" (vacant positions have no incumbent) ---------
@@ -398,22 +402,31 @@ if (invalid_pos_count > 0) {
 # so staging must store '' (not NULL) to match the target's DEFAULT ('').
 df$EmplId <- ifelse(is.na(df$EmplId), "", df$EmplId)
 
-# --- Deduplicate on composite business key before staging load ---------------
+# --- Capture duplicate composite key rows before deduplication ---------------
 # Business key: PosPosition + EmplId (composite).
 # The API returns ~4 duplicate (PosPosition, EmplId) pairs caused by the
-# FutureTermReason reporting artifact (e.g. 'Redundant' vs 'Retired' for the
-# same position+employee).  FutureTermReason is an attribute, NOT part of the
-# key.  Keep the last row per composite key (last row in PeopleSoft report
-# order) and log the count removed.
+# FutureTermReason reporting artifact (e.g. 'Redundant' vs 'Retired').
+# FutureTermReason is an attribute, NOT part of the key. Capture the discarded
+# rows (earlier occurrences of each key) for quality tracking BEFORE dedup.
 composite_key <- paste(df$PosPosition, df$EmplId, sep = "|")
-dup_count <- sum(duplicated(composite_key))
-if (dup_count > 0) {
+dup_mask      <- duplicated(composite_key, fromLast = TRUE)  # TRUE = earlier occurrence; will be dropped
+dup_rows      <- df[dup_mask, ]
+dup_rows$DropReason <- "DUPLICATE_COMPOSITE_KEY"
+
+if (nrow(dup_rows) > 0) {
   warning(paste(
-    dup_count, "duplicate (PosPosition, EmplId) rows removed before staging load.",
+    nrow(dup_rows),
+    "duplicate (PosPosition, EmplId) row(s) captured for quality log and removed.",
     "Cause: FutureTermReason reporting artifact (attribute, not part of business key)."
   ))
-  df <- df[!duplicated(composite_key, fromLast = TRUE), ]
+  df <- df[!dup_mask, ]
 }
+
+# --- Combine all dropped rows for quality persistence -------------------------
+dropped_df <- rbind(null_pos_rows, dup_rows)
+cat("Dropped rows captured for quality log:", nrow(dropped_df),
+    "(NULL_POSPOSITION:", nrow(null_pos_rows),
+    "| DUPLICATE_COMPOSITE_KEY:", nrow(dup_rows), ")\n")
 
 # --- Load to SQL Server staging table ----------------------------------------
 
@@ -442,6 +455,31 @@ dbWriteTable(
 stg_cnt <- dbGetQuery(con, paste0("SELECT COUNT(*) AS StagingRows FROM ", staging_table, ";"))
 
 dbCommit(con)
+
+# --- Persist dropped records to quality tracking table (best-effort) ---------
+# Dropped rows are appended to Stg_Peoplesoft_SO001HRORG_Dropped for SHR
+# upstream data issue reporting and trend analysis across ETL runs.
+# Failure here does NOT block the main pipeline — wrapped in tryCatch.
+if (nrow(dropped_df) > 0) {
+  tryCatch({
+    dbWriteTable(
+      con,
+      name      = Id(schema = "dbo", table = "Stg_Peoplesoft_SO001HRORG_Dropped"),
+      value     = dropped_df,
+      append    = TRUE,
+      row.names = FALSE
+    )
+    cat("Dropped rows persisted to quality log:", nrow(dropped_df), "\n")
+    drop_summary <- as.data.frame(table(dropped_df$DropReason))
+    for (i in seq_len(nrow(drop_summary))) {
+      cat(" ", drop_summary$Var1[i], ":", drop_summary$Freq[i], "\n")
+    }
+  }, error = function(e) {
+    warning(paste("Best-effort quality log failed (pipeline continues):", conditionMessage(e)))
+  })
+} else {
+  cat("No dropped rows to persist to quality log.\n")
+}
 
 # --- Execute MERGE stored procedure (staging -> target + audit) ---------------
 

@@ -191,6 +191,7 @@ ddl/
 02_target.sql
 03_audit.sql
 04_merge_proc.sql
+05_dropped_stage.sql   <- dropped records quality table
 reporting/
 
 daily/
@@ -199,6 +200,39 @@ ad_hoc/
 schemas/
 
 <api_name>_schema.json
+
+Data Quality Tracking (Dropped Records)
+
+For every onboarded API, rows excluded from the pipeline due to upstream data
+anomalies must be persisted to a quality tracking table — not just logged.
+
+Why
+- Warning logs disappear; a SQL table is permanent and queryable
+- SHR needs visibility into API data anomalies across runs
+- Enables trend analysis (is the problem getting better or worse?)
+
+Dropped Records Table (DDL: 05_dropped_stage.sql)
+- Table: dbo.Stg_<ApiName>_Dropped
+- DropReason NVARCHAR(100) NOT NULL
+- LoadDtmUtc DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()
+- All staging columns (same schema, all nullable)
+- No PK; append-only across ETL runs
+
+DropReason Values
+- 'NULL_POSPOSITION'         — PosPosition was NULL or blank in the API response
+- 'DUPLICATE_COMPOSITE_KEY' — Duplicate on (PosPosition, EmplId); removed before staging load
+
+R ETL Pattern
+1. Capture null_pos_rows BEFORE dropping (add DropReason = 'NULL_POSPOSITION')
+2. Capture dup_rows BEFORE deduplication (add DropReason = 'DUPLICATE_COMPOSITE_KEY')
+3. Combine: dropped_df <- rbind(null_pos_rows, dup_rows)
+4. After main staging commit: load dropped_df via dbWriteTable(append = TRUE)
+5. Wrap load in tryCatch — failure must NOT block the MERGE
+
+Reporting
+- Create reporting/audit/audit__dropped_records_summary.sql
+- Show count by DropReason, latest LoadDtmUtc, and sample records
+- Include FutureTermReason column in DUPLICATE_COMPOSITE_KEY samples for diagnosis
 ✅ COPY ENDS HERE
 ✅ Why this works (important)
 No ``` blocks → nothing breaks in paste
