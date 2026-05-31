@@ -1,4 +1,4 @@
-# Copyright 2024 Province of British Columbia
+# Copyright 2026 Province of British Columbia
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,99 +12,178 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# =============================================================================
-# psa_time_in_position_etl.R
-# ETL script: Datamart_CITZ_Report_TimeInPositionEmployee
-# API method: GET (paginated)
+# ============================================================================
+# PeopleSoft API -> SQL Server ETL
+# Dataset: Datamart_CITZ_Report_TimeInPositionEmployee (TIP)
+# HTTP method: GET (paginated via @odata.nextLink)
 # Business key: EmployeeId + Position + EntryDate + EntrySeq
-# Target table: dbo.Peoplesoft_TIP
-# =============================================================================
+# Dedup: YES -- deduplicate on the business key before load;
+#        keep last row; dropped rows written to Dropped table
+# Notes:
+#   - JSON key "core" is lowercase (must be mapped exactly)
+#   - ~2,764 rows have NULL ExitDate -- employees still in current position
+#     (expected, not a data quality issue)
+#
+# Configuration:
+#   - API credentials: PSA_API_USERNAME, PSA_API_PROD_PASSWORD (System Env Vars)
+#   - All other config: .Renviron.prod or .Renviron.test
+# ============================================================================
 
-suppressPackageStartupMessages({
-  library(httr2)
-  library(jsonlite)
-  library(dplyr)
-  library(purrr)
-  library(DBI)
-  library(odbc)
-})
+library(httr2)
+library(jsonlite)
+library(DBI)
+library(odbc)
+library(dplyr)
+library(tibble)
 
-# -----------------------------------------------------------------------------
-# Configuration (no credentials or server names stored here)
-# -----------------------------------------------------------------------------
-api_url    <- Sys.getenv("PSA_API_TIP_URL")
-api_token  <- Sys.getenv("PSA_API_TOKEN")
-db_dsn     <- Sys.getenv("PSA_DB_DSN")
+# --- Load env config based on PSA_API_ENV (TEST or PROD, default PROD) -------
 
-stopifnot(
-  nchar(api_url)   > 0,
-  nchar(api_token) > 0,
-  nchar(db_dsn)    > 0
+api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
+env_file <- switch(api_env,
+  "TEST" = ".Renviron.test",
+  "PROD" = ".Renviron.prod",
+  stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
+)
+if (!file.exists(env_file)) {
+  stop("Env file not found: ", env_file)
+}
+readRenviron(env_file)
+
+# --- Configuration (from .Renviron) ------------------------------------------
+
+api_base_url <- Sys.getenv("PSA_API_BASE_URL")
+sql_server   <- Sys.getenv("PSA_SQL_SERVER")
+sql_database <- Sys.getenv("PSA_SQL_DATABASE")
+proxy_host   <- Sys.getenv("PSA_PROXY_HOST")
+proxy_port   <- as.integer(Sys.getenv("PSA_PROXY_PORT"))
+
+# Credentials (from system env vars, NOT .Renviron)
+psa_user <- Sys.getenv("PSA_API_USERNAME")
+psa_pass <- Sys.getenv("PSA_API_PROD_PASSWORD")
+
+api_name <- "Datamart_CITZ_Report_TimeInPositionEmployee"
+
+# Full API URL (base + API name)
+api_url <- paste0(api_base_url, api_name)
+
+# Table names
+staging_table <- "dbo.Stg_Peoplesoft_TIP"
+dropped_table <- "dbo.Stg_Peoplesoft_TIP_Dropped"
+
+# --- Validate required variables ---------------------------------------------
+
+config_vars <- c(
+  "PSA_API_BASE_URL",
+  "PSA_SQL_SERVER",
+  "PSA_SQL_DATABASE",
+  "PSA_PROXY_HOST"
 )
 
-# -----------------------------------------------------------------------------
-# Helper: normalise a single cell value
-# {} (empty list/object from JSON) -> NA_character_
-# -----------------------------------------------------------------------------
-normalize_cell <- function(x) {
-  if (is.list(x) && length(x) == 0) return(NA_character_)
-  if (is.null(x))                    return(NA_character_)
-  as.character(x)
+credential_vars <- c(
+  "PSA_API_USERNAME",
+  "PSA_API_PROD_PASSWORD"
+)
+
+missing_config <- config_vars[Sys.getenv(config_vars) == ""]
+missing_creds  <- credential_vars[Sys.getenv(credential_vars) == ""]
+
+if (length(missing_config) > 0) {
+  stop(paste(
+    "Missing config in", env_file, ":",
+    paste(missing_config, collapse = ", "),
+    "\nSee .Renviron.example for required variables."
+  ))
 }
 
-# -----------------------------------------------------------------------------
-# Paginated fetch
-# -----------------------------------------------------------------------------
-fetch_all_pages <- function(url, token) {
-  records <- list()
-  next_url <- url
+if (length(missing_creds) > 0) {
+  stop(paste(
+    "Missing credentials in system environment variables:",
+    paste(missing_creds, collapse = ", "),
+    "\nSet these via: Win+R -> sysdm.cpl -> Advanced -> Environment Variables"
+  ))
+}
+
+cat("===================================================\n")
+cat("PSA TIP ETL starting\n")
+cat("Environment:", api_env, "\n")
+cat("Config file:", env_file, "\n")
+cat("API Name:", api_name, "\n")
+cat("Timestamp:", format(Sys.time()), "\n")
+cat("===================================================\n")
+
+# --- Helper: normalize empty JSON objects {} -> NA ---------------------------
+
+normalize_cell <- function(x) {
+  if (is.list(x) && length(x) == 0) return(NA)
+  x
+}
+
+# --- Helper: fetch a single page from the API (GET method) -------------------
+
+fetch_page <- function(url) {
+  req <- request(url) |>
+    req_method("GET") |>
+    req_auth_basic(psa_user, psa_pass) |>
+    req_headers(Accept = "application/json") |>
+    req_timeout(120) |>
+    req_proxy(proxy_host, proxy_port)
+
+  resp <- req_perform(req)
+  resp_body_json(resp, simplifyVector = FALSE)
+}
+
+# --- Helper: fetch all pages (handles OData pagination) ----------------------
+
+fetch_all <- function(start_url) {
+  url   <- start_url
+  pages <- list()
+  i     <- 1
 
   repeat {
-    req <- request(next_url) |>
-      req_headers(Authorization = paste("Bearer", token),
-                  Accept        = "application/json")
+    raw <- fetch_page(url)
 
-    resp <- req_perform(req)
-
-    if (resp_status(resp) != 200) {
-      stop(sprintf("API returned HTTP %d for URL: %s", resp_status(resp), next_url))
+    if (!is.null(raw$value) && length(raw$value) > 0) {
+      pages[[i]] <- raw$value
     }
 
-    body <- resp_body_json(resp, simplifyVector = FALSE)
-    page_records <- body[["value"]]
+    # Handle OData pagination (supports standard and non-standard key naming)
+    next_link <- raw[["@odata.nextLink"]]
+    if (is.null(next_link)) next_link <- raw[["odata.nextLink"]]
 
-    if (!is.null(page_records) && length(page_records) > 0) {
-      records <- c(records, page_records)
-    }
+    if (is.null(next_link) || is.na(next_link) || next_link == "") break
 
-    # Check for next page (both OData 4 and OData 3 link names)
-    next_link <- body[["@odata.nextLink"]] %||% body[["odata.nextLink"]]
-    if (is.null(next_link) || nchar(next_link) == 0) break
-
-    next_url <- next_link
     Sys.sleep(0.2)
+    url <- next_link
+    i   <- i + 1
   }
 
-  records
+  if (length(pages) == 0) {
+    return(tibble())
+  }
+
+  rows <- unlist(pages, recursive = FALSE)
+
+  normalize_row <- function(x) {
+    lapply(x, function(v) {
+      if (is.list(v) && length(v) == 0) NA else v
+    })
+  }
+
+  rows_norm <- lapply(rows, normalize_row)
+  bind_rows(rows_norm)
 }
 
-message(sprintf("[%s] Fetching TimeInPositionEmployee from API...", Sys.time()))
-raw_records <- fetch_all_pages(api_url, api_token)
-message(sprintf("[%s] Fetched %d raw records.", Sys.time(), length(raw_records)))
+# --- Fetch + parse -----------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Normalise to data frame
-# -----------------------------------------------------------------------------
-df_raw <- purrr::map(raw_records, function(rec) {
-  purrr::map(rec, normalize_cell) |> as.data.frame(stringsAsFactors = FALSE)
-}) |> dplyr::bind_rows()
+df <- fetch_all(api_url)
 
-message(sprintf("[%s] Normalised to %d rows x %d columns.", Sys.time(), nrow(df_raw), ncol(df_raw)))
+if (nrow(df) == 0) stop("No rows returned from API.")
 
-# -----------------------------------------------------------------------------
-# Rename JSON keys to SQL column names
-# NOTE: "core" is lowercase in the JSON payload — must be listed exactly.
-# -----------------------------------------------------------------------------
+cat("Raw rows fetched:", nrow(df), "\n")
+
+# --- Rename JSON field names to SQL PascalCase column names ------------------
+# NOTE: "core" is lowercase in the JSON payload -- must be listed exactly.
+
 json_to_sql <- c(
   EmployeeId                          = "EmployeeID",
   Position                            = "Position",
@@ -149,7 +228,7 @@ json_to_sql <- c(
   CurrentProgramBranch                = "Current_Program_Branch",
   CurrentProgramDivision              = "Current_Program_Division",
   CurrentStatus                       = "Current_Status",
-  PositionCurrentClassificationGroup = "Position_Current_ClassificationGroup",
+  PositionCurrentClassificationGroup  = "Position_Current_ClassificationGroup",
   PositionCurrentJobCode              = "Position_Current_Job_Code",
   PositionCurrentJobCodeDesc          = "Position_Current_JobCodeDesc",
   PositionCurrentJobCodeDescGroup     = "Position_Current_JobCodeDescGroup",
@@ -160,156 +239,214 @@ json_to_sql <- c(
   Level1                              = "Level1",
   Level2                              = "Level2",
   Level3                              = "Level3",
-  Core                                = "core"        # lowercase in JSON
+  Core                                = "core"
 )
 
-df <- df_raw |> dplyr::rename(dplyr::any_of(json_to_sql))
+df <- df |> dplyr::rename(any_of(json_to_sql))
 
-# Backfill any columns missing from this API response
-all_sql_cols <- names(json_to_sql)
-missing_cols <- setdiff(all_sql_cols, names(df))
-if (length(missing_cols) > 0) {
-  message(sprintf("[%s] Backfilling %d missing column(s): %s",
-                  Sys.time(), length(missing_cols), paste(missing_cols, collapse = ", ")))
-  df[missing_cols] <- NA_character_
+# --- Validate expected columns -----------------------------------------------
+
+expected <- names(json_to_sql)
+
+# Hard-stop only if any business key column is missing -- unrecoverable.
+key_cols <- c("EmployeeId", "Position", "EntryDate", "EntrySeq")
+absent_keys <- setdiff(key_cols, names(df))
+if (length(absent_keys) > 0) {
+  stop(paste(
+    "Business key column(s) missing from API response:",
+    paste(absent_keys, collapse = ", ")
+  ))
 }
-df <- df[all_sql_cols]
 
-# -----------------------------------------------------------------------------
-# Type alignment
-# -----------------------------------------------------------------------------
-char_cols <- c(
-  "EmployeeId", "Position",
-  "EmployeeName",
-  "EntryAction", "EntryReason", "EntryReasonDescr",
-  "ExitAction", "ExitReason", "ExitReasonDescr",
-  "ClassificationGroupAtEntry", "JobCodeAtEntry", "JobCodeDescAtEntry", "JobCodeDescGroupAtEntry",
-  "CurrentApptStat", "CurrentBase", "CurrentDeptDescr", "CurrentDeptId",
-  "CurrentJobFunction", "CurrentJobcode", "CurrentJobcodeDescr",
-  "CurrentOrHistorical", "CurrentOrganization", "CurrentPosition",
-  "CurrentProgram", "CurrentProgramBranch", "CurrentProgramDivision", "CurrentStatus",
-  "PositionCurrentClassificationGroup", "PositionCurrentJobCode",
-  "PositionCurrentJobCodeDesc", "PositionCurrentJobCodeDescGroup", "PositionTitle",
-  "Department", "DeptId", "Organization", "Level1", "Level2", "Level3", "Core"
+# Backfill any other expected columns absent from the API response.
+missing_cols <- setdiff(expected, names(df))
+if (length(missing_cols) > 0) {
+  warning(paste(
+    "Columns absent from API response (all rows were {} -- backfilled as NA):",
+    paste(missing_cols, collapse = ", ")
+  ))
+  df[missing_cols] <- NA
+}
+
+# Normalize any remaining list-columns to atomic values
+for (col in expected) {
+  df[[col]] <- lapply(df[[col]], normalize_cell)
+  df[[col]] <- unlist(df[[col]], recursive = FALSE, use.names = FALSE)
+}
+
+# --- Type alignment (matches SQL Server staging schema) ----------------------
+
+char_cols <- intersect(
+  c(
+    "EmployeeId", "Position",
+    "EmployeeName",
+    "EntryAction", "EntryReason", "EntryReasonDescr",
+    "ExitAction", "ExitReason", "ExitReasonDescr",
+    "ClassificationGroupAtEntry", "JobCodeAtEntry", "JobCodeDescAtEntry",
+    "JobCodeDescGroupAtEntry",
+    "CurrentApptStat", "CurrentBase", "CurrentDeptDescr", "CurrentDeptId",
+    "CurrentJobFunction", "CurrentJobcode", "CurrentJobcodeDescr",
+    "CurrentOrHistorical", "CurrentOrganization", "CurrentPosition",
+    "CurrentProgram", "CurrentProgramBranch", "CurrentProgramDivision",
+    "CurrentStatus",
+    "PositionCurrentClassificationGroup", "PositionCurrentJobCode",
+    "PositionCurrentJobCodeDesc", "PositionCurrentJobCodeDescGroup",
+    "PositionTitle",
+    "Department", "DeptId", "Organization", "Level1", "Level2", "Level3", "Core"
+  ),
+  names(df)
 )
 
-int_cols <- c(
-  "EmployeeRcd", "EntryRownumber", "EntrySeq", "EntryStdHours",
-  "ExitSeq", "ExitStdHours",
-  "DaysInPosition", "IncumbentCountAfterEntry"
+int_cols <- intersect(
+  c(
+    "EmployeeRcd", "EntryRownumber", "EntrySeq", "EntryStdHours",
+    "ExitSeq", "ExitStdHours",
+    "DaysInPosition", "IncumbentCountAfterEntry"
+  ),
+  names(df)
 )
 
-dec_cols <- c(
-  "YearsInPosition", "AccumulatedYearsInPositions", "AgeAtEntry", "AgeAtExit"
+dec_cols <- intersect(
+  c(
+    "YearsInPosition", "AccumulatedYearsInPositions",
+    "AgeAtEntry", "AgeAtExit"
+  ),
+  names(df)
 )
 
-date_cols <- c(
-  "Birthdate", "EntryDate", "ExitDate", "FirstDateInPosition"
+date_cols <- intersect(
+  c("Birthdate", "EntryDate", "ExitDate", "FirstDateInPosition"),
+  names(df)
 )
 
 df <- df |>
   dplyr::mutate(
-    dplyr::across(dplyr::all_of(char_cols), as.character),
-    dplyr::across(dplyr::all_of(int_cols),  as.integer),
-    dplyr::across(dplyr::all_of(dec_cols),  as.numeric),
-    dplyr::across(dplyr::all_of(date_cols), ~ as.Date(as.character(.)))
+    dplyr::across(all_of(char_cols), as.character),
+    dplyr::across(all_of(int_cols),  ~ suppressWarnings(as.integer(.x))),
+    dplyr::across(all_of(dec_cols),  ~ suppressWarnings(as.numeric(.x))),
+    dplyr::across(all_of(date_cols), ~ suppressWarnings(as.Date(as.character(.x))))
   )
 
-# Normalise EmployeeId: blank -> NA
-df <- df |>
-  dplyr::mutate(EmployeeId = dplyr::if_else(
-    is.na(EmployeeId) | trimws(EmployeeId) == "", NA_character_, EmployeeId))
+# Select only staging columns in schema order
+df <- df[, expected]
 
-# -----------------------------------------------------------------------------
-# Connect to database
-# -----------------------------------------------------------------------------
-con <- DBI::dbConnect(odbc::odbc(), dsn = db_dsn)
-on.exit(DBI::dbDisconnect(con), add = TRUE)
+# Normalize blank EmployeeId to NA so null-key capture catches it
+df$EmployeeId <- ifelse(
+  is.na(df$EmployeeId) | trimws(df$EmployeeId) == "",
+  NA_character_,
+  df$EmployeeId
+)
 
-# -----------------------------------------------------------------------------
-# Capture NULL_EMPLOYEEID drops
-# -----------------------------------------------------------------------------
-null_key_rows <- df |> dplyr::filter(is.na(EmployeeId))
+# --- Capture and drop rows with NULL EmployeeId ------------------------------
+# NULL EmployeeId rows cannot be keyed in the MERGE. Capture them for quality
+# tracking BEFORE dropping from the main pipeline.
+null_key_mask <- is.na(df$EmployeeId)
+null_key_rows <- df[null_key_mask, ]
+null_key_rows$DropReason <- "NULL_EMPLOYEEID"
 
 if (nrow(null_key_rows) > 0) {
-  message(sprintf("[%s] Dropping %d row(s) with NULL EmployeeId.", Sys.time(), nrow(null_key_rows)))
-  dropped_null <- null_key_rows |>
-    dplyr::mutate(DropReason = "NULL_EMPLOYEEID",
-                  LoadDtmUtc = as.character(Sys.time()))
-
-  tryCatch(
-    DBI::dbWriteTable(con, DBI::Id(schema = "dbo", table = "Stg_Peoplesoft_TIP_Dropped"),
-                      dropped_null, append = TRUE, row.names = FALSE),
-    error = function(e) warning(sprintf("Failed to write NULL_EMPLOYEEID dropped rows: %s", e$message))
-  )
+  warning(paste(
+    nrow(null_key_rows),
+    "row(s) with NULL EmployeeId captured for quality log and removed from pipeline."
+  ))
+  df <- df[!null_key_mask, ]
 }
 
-df <- df |> dplyr::filter(!is.na(EmployeeId))
-
-# -----------------------------------------------------------------------------
-# Deduplication on business key (keep last row per group)
-# -----------------------------------------------------------------------------
-key_cols <- c("EmployeeId", "Position", "EntryDate", "EntrySeq")
-
-n_before <- nrow(df)
-
-df <- df |>
-  dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) |>
-  dplyr::mutate(.row_n = dplyr::row_number()) |>
-  dplyr::ungroup()
-
-dup_rows <- df |> dplyr::filter(.row_n > 1) |> dplyr::select(-.row_n)
+# --- Capture duplicate composite key rows before deduplication ---------------
+# Business key: EmployeeId + Position + EntryDate + EntrySeq.
+# Earlier occurrences of each key are dropped; the last row wins.
+composite_key <- paste(df$EmployeeId, df$Position, df$EntryDate, df$EntrySeq, sep = "|")
+dup_mask      <- duplicated(composite_key, fromLast = TRUE)  # TRUE = earlier occurrence
+dup_rows      <- df[dup_mask, ]
+dup_rows$DropReason <- "DUPLICATE_COMPOSITE_KEY"
 
 if (nrow(dup_rows) > 0) {
-  message(sprintf("[%s] Dropping %d duplicate key row(s).", Sys.time(), nrow(dup_rows)))
-  dropped_dup <- dup_rows |>
-    dplyr::mutate(DropReason = "DUPLICATE_COMPOSITE_KEY",
-                  LoadDtmUtc = as.character(Sys.time()))
-
-  tryCatch(
-    DBI::dbWriteTable(con, DBI::Id(schema = "dbo", table = "Stg_Peoplesoft_TIP_Dropped"),
-                      dropped_dup, append = TRUE, row.names = FALSE),
-    error = function(e) warning(sprintf("Failed to write DUPLICATE_COMPOSITE_KEY dropped rows: %s", e$message))
-  )
+  warning(paste(
+    nrow(dup_rows),
+    "duplicate (EmployeeId, Position, EntryDate, EntrySeq) row(s) captured for quality log and removed."
+  ))
+  df <- df[!dup_mask, ]
 }
 
-df <- df |> dplyr::filter(.row_n == 1) |> dplyr::select(-.row_n)
-n_after <- nrow(df)
-
-message(sprintf("[%s] Rows after dedup: %d (removed %d duplicates).",
-                Sys.time(), n_after, n_before - n_after))
-
-# -----------------------------------------------------------------------------
-# Sanity check: business key must be unique
-# -----------------------------------------------------------------------------
-n_unique_key <- df |>
-  dplyr::distinct(dplyr::across(dplyr::all_of(key_cols))) |>
-  nrow()
-
+# --- Sanity check: business key must be unique after dedup -------------------
+n_unique_key <- nrow(unique(df[, key_cols]))
 if (n_unique_key != nrow(df)) {
   stop(sprintf(
-    "Business key is not unique after dedup! Rows: %d, Distinct keys: %d. ETL aborted.",
+    "Business key still not unique after dedup: %d rows vs %d distinct keys.",
     nrow(df), n_unique_key
   ))
 }
 
-message(sprintf("[%s] Sanity check passed: %d rows, %d unique keys.",
-                Sys.time(), nrow(df), n_unique_key))
+# --- Combine all dropped rows for quality persistence ------------------------
+dropped_df <- rbind(null_key_rows, dup_rows)
+cat("Dropped rows captured for quality log:", nrow(dropped_df),
+    "(NULL_EMPLOYEEID:", nrow(null_key_rows),
+    "| DUPLICATE_COMPOSITE_KEY:", nrow(dup_rows), ")\n")
 
-# -----------------------------------------------------------------------------
-# Load to staging
-# -----------------------------------------------------------------------------
-message(sprintf("[%s] Truncating staging table...", Sys.time()))
-DBI::dbExecute(con, "TRUNCATE TABLE dbo.Stg_Peoplesoft_TIP")
+# --- Load to SQL Server staging table ----------------------------------------
 
-message(sprintf("[%s] Writing %d rows to dbo.Stg_Peoplesoft_TIP...", Sys.time(), nrow(df)))
-DBI::dbWriteTable(con, DBI::Id(schema = "dbo", table = "Stg_Peoplesoft_TIP"),
-                  df, append = TRUE, row.names = FALSE)
+con <- dbConnect(
+  odbc(),
+  Driver                 = "ODBC Driver 17 for SQL Server",
+  Server                 = sql_server,
+  Database               = sql_database,
+  Trusted_Connection     = "Yes",
+  Encrypt                = "Yes",
+  TrustServerCertificate = "Yes"
+)
 
-# -----------------------------------------------------------------------------
-# Execute MERGE
-# -----------------------------------------------------------------------------
-message(sprintf("[%s] Executing MERGE procedure...", Sys.time()))
-DBI::dbGetQuery(con, "EXEC dbo.usp_Merge_PeopleSoft_TIP")
+dbBegin(con)
 
-message(sprintf("[%s] ETL complete for TimeInPositionEmployee.", Sys.time()))
+dbExecute(con, paste0("TRUNCATE TABLE ", staging_table, ";"))
+
+dbWriteTable(
+  con,
+  name      = Id(schema = "dbo", table = "Stg_Peoplesoft_TIP"),
+  value     = df,
+  append    = TRUE,
+  row.names = FALSE
+)
+
+stg_cnt <- dbGetQuery(con, paste0("SELECT COUNT(*) AS StagingRows FROM ", staging_table, ";"))
+
+dbCommit(con)
+
+# --- Persist dropped records to quality tracking table (best-effort) ---------
+
+if (nrow(dropped_df) > 0) {
+  tryCatch({
+    dbWriteTable(
+      con,
+      name      = Id(schema = "dbo", table = "Stg_Peoplesoft_TIP_Dropped"),
+      value     = dropped_df,
+      append    = TRUE,
+      row.names = FALSE
+    )
+    cat("Dropped rows persisted to quality log:", nrow(dropped_df), "\n")
+    drop_summary <- as.data.frame(table(dropped_df$DropReason))
+    for (i in seq_len(nrow(drop_summary))) {
+      cat(" ", drop_summary$Var1[i], ":", drop_summary$Freq[i], "\n")
+    }
+  }, error = function(e) {
+    warning(paste("Best-effort quality log failed (pipeline continues):", conditionMessage(e)))
+  })
+} else {
+  cat("No dropped rows to persist to quality log.\n")
+}
+
+# --- Execute MERGE stored procedure (staging -> target + audit) --------------
+
+dbExecute(con, "EXEC dbo.usp_Merge_PeopleSoft_TIP")
+
+dbDisconnect(con)
+
+# --- Summary -----------------------------------------------------------------
+
+cat("===================================================\n")
+cat("PSA TIP ETL completed\n")
+cat("Environment:", api_env, "\n")
+cat("Config file:", env_file, "\n")
+cat("API Name:", api_name, "\n")
+cat("Staging rows loaded:", stg_cnt$StagingRows, "\n")
+cat("Completed at:", format(Sys.time()), "\n")
+cat("===================================================\n")

@@ -1,280 +1,147 @@
+---
 applyTo: "**/*.R"
-R Script Standards
+---
 
-Use httr2 (not httr) for HTTP requests
-Use resp_body_json() instead of resp_body_string() + fromJSON()
-Use dplyr::mutate(across(...)) for type conversions, not per-column assignment
-Use intersect(expected_cols, names(df)) for safe column selection
-Handle OData pagination with fallback: @odata.nextLink then odata.nextLink
-Normalize empty JSON objects {} to NA
+# R Script Standards
 
+## ASCII-Only Rule (CRITICAL)
 
-JSON Field Renaming
+All R scripts MUST contain only ASCII characters (codes 0-127).
 
-NEVER use bare dplyr::rename(NewName = old_name, ...)
-ALWAYS use rename(any_of(rename_map))
+Prohibited: Unicode box-drawing (`──`, `│`, `└`), arrows (`→`, `←`),
+em/en dashes (`—`, `–`), smart quotes (`"`, `"`, `'`, `'`), decorative
+bullets (`•`, `◦`). Use instead: `---`, `->`, `--`, `"`, `'`, `-`, `*`.
 
-Example:
-rename_map <- c(
-PosRole = "pos role"
-)
-df <- df |> dplyr::rename(any_of(rename_map))
+Reason: the on-prem Windows scheduler runs under a locale that corrupts
+non-ASCII bytes, producing mojibake in logs and breaking string comparisons.
 
-any_of() avoids hard failure when columns are missing
-Place rename BEFORE column validation
-Include all fields, including report metadata
+Verify before commit (must return "ASCII-only: OK"):
+```bash
+LC_ALL=C grep -n '[^[:print:][:space:]]' path/to/script.R || echo "ASCII-only: OK"
+```
 
+## Mandatory Script Structure (CRITICAL)
 
-Missing Column Handling (CRITICAL)
-After renaming, backfill missing columns instead of failing:
+Every PSA ETL script MUST follow the exact structure of the reference:
+[psa_so001hrorg_etl.R](../../citz-shr-psa-r/psa_so001hrorg_etl.R).
+
+Copy that file as the starting point for every new API. Do NOT change any of
+the locked-in choices below without documenting WHY in the script header AND
+updating this file:
+
+| Concern | Required choice |
+|---|---|
+| Libraries | `httr2`, `jsonlite`, `DBI`, `odbc`, `dplyr`, `tibble` (NOT `purrr`) |
+| Env loading | `readRenviron(switch(PSA_API_ENV, "TEST"=".Renviron.test", "PROD"=".Renviron.prod"))`, default `PROD` |
+| Config env vars | `PSA_API_BASE_URL`, `PSA_SQL_SERVER`, `PSA_SQL_DATABASE`, `PSA_PROXY_HOST`, `PSA_PROXY_PORT` |
+| Credential env vars | `PSA_API_USERNAME`, `PSA_API_PROD_PASSWORD` (system env, NOT `.Renviron`) |
+| Validation | `config_vars` + `credential_vars` checked, `stop()` on missing |
+| HTTP client | `httr2` only (NOT `httr`) |
+| Auth | `req_auth_basic(psa_user, psa_pass)` |
+| Proxy | `req_proxy(proxy_host, as.integer(proxy_port))` |
+| Timeout | `req_timeout(120)` |
+| JSON parse | `resp_body_json(resp, simplifyVector = FALSE)` (NOT `fromJSON`) |
+| Row binding | `bind_rows()` over `lapply(rows, normalize_row)` (NOT `purrr::map_dfr`) |
+| Empty object `{}` | `normalize_cell()` converts to `NA` |
+| DB driver | `ODBC Driver 17 for SQL Server` |
+| DB connect args | `Trusted_Connection="Yes"`, `Encrypt="Yes"`, `TrustServerCertificate="Yes"` |
+| DB connect placement | AFTER data prep + dedup, BEFORE staging load |
+| Rename idiom | `dplyr::rename(any_of(json_to_sql))` (NEVER bare `rename()`) |
+| Banners | `cat()` start banner + end banner with row counts |
+| License | Apache 2.0 header at top |
+| Copyright year | Current year |
+
+## JSON Field Renaming
+
+Place rename BEFORE column validation. Include all fields (report metadata included).
+
+```r
+json_to_sql <- c(PosRole = "pos role", EmplId = "EMPLID")
+df <- df |> dplyr::rename(any_of(json_to_sql))
+```
+
+`any_of()` avoids hard failure when fields are absent.
+
+## Missing Column Handling
+
+After renaming, backfill missing non-key columns instead of failing:
+```r
 missing_cols <- setdiff(expected, names(df))
 if (length(missing_cols) > 0) {
-warning(paste(
-"Columns absent from API response (backfilled as NA):",
-paste(missing_cols, collapse = ", ")
-))
-df[missing_cols] <- NA
+  warning(paste("Columns absent (backfilled as NA):", paste(missing_cols, collapse = ", ")))
+  df[missing_cols] <- NA
 }
-Rules:
+```
 
-NEVER stop on missing non-key columns
-ONLY stop if a business key column is missing
+ONLY `stop()` if a business key column is missing.
 
+## Deduplication & Dropped Record Capture (CRITICAL)
 
-Business Key Validation (CRITICAL)
+Dedup BEFORE `dbWriteTable()`. Dedup ONLY on the business key. Keep last row
+with `fromLast = TRUE`. Capture dropped rows for the quality table BEFORE
+removing them from `df`.
 
-Hard stop ONLY if the primary identity column is missing or NULL
-Secondary key columns may allow NULL (depending on design)
+Pattern:
+```r
+# 1. Capture + drop NULL key rows
+null_mask <- is.na(df$PosPosition) | df$PosPosition == ""
+null_rows <- df[null_mask, ]
+null_rows$DropReason <- "NULL_POSPOSITION"
+df <- df[!null_mask, ]
 
-Example rule:
-
-PosPosition → REQUIRED → stop if NULL
-EmplId → OPTIONAL → normalize NULL
-
-
-Deduplication (CRITICAL)
-Some APIs return duplicate rows due to reporting artifacts.
-Rules
-
-Deduplicate BEFORE dbWriteTable()
-Deduplicate ONLY on business key
-Keep last record using fromLast = TRUE
-Log number of duplicates removed
-NEVER include attribute columns in dedup
-
-
-Dedup Pattern (SO001HRORG STANDARD)
-1. Drop invalid key rows (mandatory field)
-invalid_rows <- sum(is.na(df$PosPosition) | df$PosPosition == "")
-if (invalid_rows > 0) {
-warning(paste("Dropping rows with NULL PosPosition:", invalid_rows))
-df <- df[!(is.na(df$PosPosition) | df$PosPosition == ""), ]
-}
-2. Normalize nullable key column (vacant positions)
+# 2. Normalize nullable key column (e.g. vacant positions)
 df$EmplId[is.na(df$EmplId)] <- ""
-3. Deduplicate on composite business key
-original_count <- nrow(df)
-df <- df[!duplicated(paste(df$PosPosition, df$EmplId, sep="|"), fromLast = TRUE), ]
-cat("Duplicates removed:", original_count - nrow(df), "\n")
 
-Deduplication Rationale
-
-Some APIs are report-style outputs (not true relational entities)
-Duplicate rows may represent:
-
-report artifacts
-multi-valued attributes
-data modeling artifacts
-
-
-
-Example: SO001HRORG
-Duplicate rows occur because:
-
-Same employee + position
-Different FutureTermReason (Redundant vs Retired)
-
-These are NOT separate business records
-Decision:
-
-Business key = PosPosition + EmplId
-FutureTermReason is NOT part of key
-Deduplicate before staging load
-
-
-Staging Load Rules
-
-Perform ALL cleanup BEFORE dbWriteTable()
-Staging table must receive:
-
-valid keys
-deduplicated rows
-correctly typed columns
-
-
-
-
-SQL Execution Rules
-
-Use dbExecute() for DDL/DML
-Use dbGetQuery() for SELECT
-Do NOT mix the two
-
-
-Environment Configuration
-
-Read credentials using Sys.getenv() only
-Load environment file using:
-
-readRenviron(".Renviron.prod")
-or
-readRenviron(".Renviron.test")
-
-Validate required variables:
-
-required <- c("PSA_API_BASE_URL", "PSA_API_USERNAME", "PSA_API_PROD_PASSWORD")
-missing <- required[Sys.getenv(required) == ""]
-if (length(missing) > 0) {
-stop(paste("Missing environment variables:", paste(missing, collapse = ", ")))
-}
-
-HTTP Method Handling
-
-Read from schema discovery
-If POST required:
-
-req <- request(url) |> req_method("POST")
-
-If GET → default behavior
-
-
-Pagination Rules
-
-Always handle pagination
-Check both:
-
-@odata.nextLink
-odata.nextLink
-
-Use:
-
-Sys.sleep(0.2)
-between calls
-
-Report Metadata Handling
-
-Include metadata fields in expected column list
-Include in type conversion
-Include in staging
-
-BUT:
-
-Do NOT use in:
-
-MERGE ON
-HASHBYTES
-Target table
-
-
-
-
-Connection Handling
-
-Always close connection:
-
-dbDisconnect(con)
-
-Never leave open connections
-
-
-Licensing
-
-Include Apache 2.0 header at top of every script
-
-
-Handling Dropped Records (Data Quality)
-
-When rows are excluded from the main pipeline due to:
-- Invalid business key (NULL/blank PosPosition)
-- Duplicate composite keys (e.g. FutureTermReason artifact)
-
-Rules
-- Capture dropped rows into a dataframe BEFORE removing them from df
-- Add a DropReason column: 'NULL_POSPOSITION' or 'DUPLICATE_COMPOSITE_KEY'
-- Combine into dropped_df using rbind()
-- Load dropped_df into Stg_<ApiName>_Dropped via dbWriteTable(append = TRUE)
-- Wrap the load in tryCatch — failure must NOT block the main pipeline
-- Log count of dropped rows by reason using cat()
-- Do NOT truncate the dropped table between runs (append-only history)
-
-Pattern
-null_pos_mask <- is.na(df$PosPosition) | df$PosPosition == ""
-null_pos_rows <- df[null_pos_mask, ]
-null_pos_rows$DropReason <- "NULL_POSPOSITION"
-df <- df[!null_pos_mask, ]
-
+# 3. Capture + drop duplicates on composite key
 composite_key <- paste(df$PosPosition, df$EmplId, sep = "|")
-dup_mask      <- duplicated(composite_key, fromLast = TRUE)
-dup_rows      <- df[dup_mask, ]
+dup_mask <- duplicated(composite_key, fromLast = TRUE)
+dup_rows <- df[dup_mask, ]
 dup_rows$DropReason <- "DUPLICATE_COMPOSITE_KEY"
 df <- df[!dup_mask, ]
 
-dropped_df <- rbind(null_pos_rows, dup_rows)
-
+# 4. Combine + persist (best-effort, never blocks pipeline)
+dropped_df <- rbind(null_rows, dup_rows)
 tryCatch({
   dbWriteTable(con,
     name = Id(schema = "dbo", table = "Stg_<ApiName>_Dropped"),
     value = dropped_df, append = TRUE, row.names = FALSE)
-  cat("Dropped rows persisted:", nrow(dropped_df), "\n")
-}, error = function(e) {
-  warning(paste("Best-effort quality log failed:", conditionMessage(e)))
-})
+}, error = function(e) warning(paste("Quality log failed:", conditionMessage(e))))
+```
 
+Never truncate the dropped table -- it is append-only history.
 
-Date Column Type Conversion
-When API returns ISO-format date strings, convert to R Date (not character).
-This produces a SQL DATE column — not NVARCHAR.
+## Type Conversion
 
-Rules
-Use as.Date(as.character(.x)) inside dplyr::across(all_of(date_cols))
-List date column names explicitly in a date_cols vector
-Include ALL date columns: NOT NULL dates AND nullable dates
-Nullable dates that return {} from the API are already NA after normalize_cell()
-  — as.Date(NA_character_) returns NA correctly, no special handling needed
+Use `dplyr::across(all_of(cols))`. List each type group explicitly. Wrap
+numeric/date casts in `suppressWarnings()`.
 
-Pattern
-date_cols <- intersect(
-  c("Birthdate", "HireDt", "LastHireDt", "MostHistoricDate",
-    "FirstDateInOrganization", "FirstDateInPosition",
-    "FutureReturnDate", "LayoffLeaveStopPayStartDate", "AsOfDate"),
-  names(df)
+```r
+df <- df |> dplyr::mutate(
+  dplyr::across(all_of(char_cols), as.character),
+  dplyr::across(all_of(int_cols),  ~ suppressWarnings(as.integer(.x))),
+  dplyr::across(all_of(dec_cols),  ~ suppressWarnings(as.numeric(.x))),
+  dplyr::across(all_of(date_cols), ~ suppressWarnings(as.Date(as.character(.x))))
 )
+```
 
-df <- df |>
-  dplyr::mutate(
-    dplyr::across(all_of(date_cols), ~ suppressWarnings(as.Date(as.character(.x))))
-  )
+Rules:
+- Dates -> R `Date` (produces SQL `DATE`, not `NVARCHAR`).
+- Decimals -> R numeric (SQL `DECIMAL`).
+- Integers -> R integer (SQL `INT`).
+- NEVER cast numeric/date columns to character.
 
-Never use as.character() on date columns in the final df — SQL type is DATE.
+## Pagination
 
+Always handle OData pagination. Check both `@odata.nextLink` and `odata.nextLink`.
+Use `Sys.sleep(0.2)` between pages.
 
-Numeric Column Type Conversion (DECIMAL / INT)
-When API returns numeric values, convert to R numeric/integer — not character.
+## SQL Execution
 
-Rules
-Use as.numeric(.x) for DECIMAL columns (stored as SQL DECIMAL)
-Use as.integer(.x) for INT columns (stored as SQL INT)
-NEVER cast numeric columns to as.character() — they are not text in SQL
-Wrap in suppressWarnings() to handle edge cases silently
-List in separate dec_cols and int_cols vectors
+- `dbExecute()` for DDL/DML.
+- `dbGetQuery()` for SELECT.
+- Do NOT mix the two.
+- Always `dbDisconnect(con)`.
 
-Pattern
-int_cols <- intersect(c("EmplRcd", "Step"), names(df))
-dec_cols <- intersect(c("Age", "AnnualRt", "CompRate", "HourlyRt", "StdHours"), names(df))
+## Report Metadata
 
-df <- df |>
-  dplyr::mutate(
-    dplyr::across(all_of(int_cols),  ~ suppressWarnings(as.integer(.x))),
-    dplyr::across(all_of(dec_cols),  ~ suppressWarnings(as.numeric(.x)))
-  )
-
+Include in staging columns + type conversion. EXCLUDE from MERGE ON, HASHBYTES, target.
