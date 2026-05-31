@@ -1,9 +1,9 @@
 {
-  "@odata.context": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_TimeInPositionEmployee",
+  "@odata.context": "https://api.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_TimeInPositionEmployee",
   "_discovery": {
     "api_name": "Datamart_CITZ_Report_TimeInPositionEmployee",
     "method": "GET",
-    "url": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_Report_TimeInPositionEmployee?$top=1",
+    "url": "https://api.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_Report_TimeInPositionEmployee?$top=1",
     "discovered": "2026-05-31 02:37:47 PDT",
     "environment": "PROD"
   },

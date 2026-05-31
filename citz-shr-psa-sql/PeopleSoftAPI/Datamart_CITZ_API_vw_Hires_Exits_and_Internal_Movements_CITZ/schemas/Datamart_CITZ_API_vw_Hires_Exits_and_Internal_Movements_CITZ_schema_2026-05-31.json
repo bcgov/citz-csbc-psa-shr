@@ -1,9 +1,9 @@
 {
-  "@odata.context": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ",
+  "@odata.context": "https://api.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ",
   "_discovery": {
     "api_name": "Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ",
     "method": "GET",
-    "url": "https://analytics-api.psa.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ?$top=1",
+    "url": "https://api.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ?$top=1",
     "discovered": "2026-05-31 02:53:23 PDT",
     "environment": "PROD"
   },

@@ -1,0 +1,53 @@
+{
+  "@odata.context": "https://api.gov.bc.ca/apiserver/api.rsc/$metadata#Datamart_CITZ_Report_EmptyPositionCount",
+  "_discovery": {
+    "api_name": "Datamart_CITZ_Report_EmptyPositionCount",
+    "method": "GET",
+    "url": "https://api.gov.bc.ca/apiserver/api.rsc/Datamart_CITZ_Report_EmptyPositionCount?$top=1",
+    "discovered": "2026-05-31 14:24:52 PDT",
+    "environment": "PROD"
+  },
+  "value": [
+    {
+      "As_Of_Date": "2026-05-31",
+      "BASE_INCUMBENTS": {},
+      "Business_Unit_Descr": "Citizens' Services",
+      "CITY": "Victoria",
+      "Classification_Group": "Finance & Economics",
+      "core": "CORE",
+      "Create_EFFDT": "1940-01-01",
+      "DEPTID": "112-2200",
+      "DeptID_Desc": "Shared Services, Payroll",
+      "Development_Region": "Vancouver lsland/Coast",
+      "Empty_EFFDT": "2004-11-13",
+      "Empty_Position": "YES",
+      "Excluded_or_Included": "Included",
+      "Incumbent_Count": {},
+      "Incumbents": {},
+      "Job_Code": "551404",
+      "Job_Code_Desc": "Financial Officer R21",
+      "Job_Func": "111",
+      "Job_Req_Open_Date": {},
+      "Job_Req_Status": {},
+      "LAST_INCUMBENTS": "J,J",
+      "LOCATION": "V8W1X302",
+      "NOC_Code": "0000",
+      "NOC_Code_Descr": "Please enter valid NOC Code",
+      "Organization": "Citizens Services",
+      "Pos_Status_Descr": "Approved",
+      "Position": "00000000",
+      "Position_Empty_Greater_Than_1_Year": "YES",
+      "Position_Has_Base_Incumbent": "NO",
+      "Position_Title": "Payroll Administrator",
+      "Program": "TSSI Transfer Out",
+      "Program_Branch": {},
+      "Program_Division": "Shared Services, Payroll",
+      "Provincial_Quadrant": "Vancouver lsland/Coast",
+      "Reg_District_Desc": "Capital",
+      "Reg_or_Temp_Descr": "Regular/Continuous",
+      "Reports_To": "00011111",
+      "Supervisor": {},
+      "Years_Empty": 21.5441
+    }
+  ]
+}

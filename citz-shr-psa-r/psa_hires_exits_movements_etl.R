@@ -127,7 +127,7 @@ fetch_page <- function(url) {
     req_method("GET") |>
     req_auth_basic(psa_user, psa_pass) |>
     req_headers(Accept = "application/json") |>
-    req_timeout(120) |>
+    req_timeout(600) |>
     req_proxy(proxy_host, proxy_port)
 
   resp <- req_perform(req)

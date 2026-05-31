@@ -1,0 +1,365 @@
+{
+  "api_name": "Datamart_CITZ_Report_EmptyPositionCount",
+  "discovered": "2026-05-31 14:25:05 PDT",
+  "environment": "PROD",
+  "total_rows": 3859,
+  "total_columns": 39,
+  "single_column_analysis": {
+    "As_Of_Date": {
+      "column": "As_Of_Date",
+      "distinct_count": 1,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Business_Unit_Descr": {
+      "column": "Business_Unit_Descr",
+      "distinct_count": 1,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "CITY": {
+      "column": "CITY",
+      "distinct_count": 67,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 1.7
+    },
+    "Classification_Group": {
+      "column": "Classification_Group",
+      "distinct_count": 10,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.3
+    },
+    "core": {
+      "column": "core",
+      "distinct_count": 1,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Create_EFFDT": {
+      "column": "Create_EFFDT",
+      "distinct_count": 1724,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 44.7
+    },
+    "DEPTID": {
+      "column": "DEPTID",
+      "distinct_count": 232,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 6
+    },
+    "DeptID_Desc": {
+      "column": "DeptID_Desc",
+      "distinct_count": 232,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 6
+    },
+    "Development_Region": {
+      "column": "Development_Region",
+      "distinct_count": 8,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.2
+    },
+    "Empty_EFFDT": {
+      "column": "Empty_EFFDT",
+      "distinct_count": 505,
+      "total_rows": 3859,
+      "null_count": 2925,
+      "is_unique": false,
+      "pct": 13.1
+    },
+    "Empty_Position": {
+      "column": "Empty_Position",
+      "distinct_count": 2,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Excluded_or_Included": {
+      "column": "Excluded_or_Included",
+      "distinct_count": 2,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Job_Code": {
+      "column": "Job_Code",
+      "distinct_count": 118,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 3.1
+    },
+    "Job_Code_Desc": {
+      "column": "Job_Code_Desc",
+      "distinct_count": 103,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 2.7
+    },
+    "Job_Func": {
+      "column": "Job_Func",
+      "distinct_count": 19,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.5
+    },
+    "LAST_INCUMBENTS": {
+      "column": "LAST_INCUMBENTS",
+      "distinct_count": 882,
+      "total_rows": 3859,
+      "null_count": 2925,
+      "is_unique": false,
+      "pct": 22.9
+    },
+    "LOCATION": {
+      "column": "LOCATION",
+      "distinct_count": 166,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 4.3
+    },
+    "NOC_Code": {
+      "column": "NOC_Code",
+      "distinct_count": 80,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 2.1
+    },
+    "NOC_Code_Descr": {
+      "column": "NOC_Code_Descr",
+      "distinct_count": 76,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 2
+    },
+    "Organization": {
+      "column": "Organization",
+      "distinct_count": 1,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0
+    },
+    "Pos_Status_Descr": {
+      "column": "Pos_Status_Descr",
+      "distinct_count": 3,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Position": {
+      "column": "Position",
+      "distinct_count": 3859,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": true,
+      "pct": 100
+    },
+    "Position_Empty_Greater_Than_1_Year": {
+      "column": "Position_Empty_Greater_Than_1_Year",
+      "distinct_count": 2,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Position_Has_Base_Incumbent": {
+      "column": "Position_Has_Base_Incumbent",
+      "distinct_count": 2,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Position_Title": {
+      "column": "Position_Title",
+      "distinct_count": 1446,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 37.5
+    },
+    "Program": {
+      "column": "Program",
+      "distinct_count": 16,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.4
+    },
+    "Program_Division": {
+      "column": "Program_Division",
+      "distinct_count": 76,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 2
+    },
+    "Provincial_Quadrant": {
+      "column": "Provincial_Quadrant",
+      "distinct_count": 4,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Reg_District_Desc": {
+      "column": "Reg_District_Desc",
+      "distinct_count": 29,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.8
+    },
+    "Reg_or_Temp_Descr": {
+      "column": "Reg_or_Temp_Descr",
+      "distinct_count": 2,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Reports_To": {
+      "column": "Reports_To",
+      "distinct_count": 956,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 24.8
+    },
+    "Years_Empty": {
+      "column": "Years_Empty",
+      "distinct_count": 596,
+      "total_rows": 3859,
+      "null_count": 0,
+      "is_unique": false,
+      "pct": 15.4
+    },
+    "BASE_INCUMBENTS": {
+      "column": "BASE_INCUMBENTS",
+      "distinct_count": 2631,
+      "total_rows": 3859,
+      "null_count": 1225,
+      "is_unique": false,
+      "pct": 68.2
+    },
+    "Incumbent_Count": {
+      "column": "Incumbent_Count",
+      "distinct_count": 3,
+      "total_rows": 3859,
+      "null_count": 1173,
+      "is_unique": false,
+      "pct": 0.1
+    },
+    "Incumbents": {
+      "column": "Incumbents",
+      "distinct_count": 2682,
+      "total_rows": 3859,
+      "null_count": 1173,
+      "is_unique": false,
+      "pct": 69.5
+    },
+    "Program_Branch": {
+      "column": "Program_Branch",
+      "distinct_count": 223,
+      "total_rows": 3859,
+      "null_count": 108,
+      "is_unique": false,
+      "pct": 5.8
+    },
+    "Supervisor": {
+      "column": "Supervisor",
+      "distinct_count": 789,
+      "total_rows": 3859,
+      "null_count": 578,
+      "is_unique": false,
+      "pct": 20.4
+    },
+    "Job_Req_Open_Date": {
+      "column": "Job_Req_Open_Date",
+      "distinct_count": 385,
+      "total_rows": 3859,
+      "null_count": 3474,
+      "is_unique": false,
+      "pct": 10
+    },
+    "Job_Req_Status": {
+      "column": "Job_Req_Status",
+      "distinct_count": 7,
+      "total_rows": 3859,
+      "null_count": 3474,
+      "is_unique": false,
+      "pct": 0.2
+    }
+  },
+  "unique_single_columns": "Position",
+  "composite_keys_found": {
+    "BASE_INCUMBENTS + Position": {
+      "columns": ["BASE_INCUMBENTS", "Position"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "Incumbents + Position": {
+      "columns": ["Incumbents", "Position"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "DEPTID + Position": {
+      "columns": ["DEPTID", "Position"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "DeptID_Desc + Position": {
+      "columns": ["DeptID_Desc", "Position"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "Empty_Position + Position": {
+      "columns": ["Empty_Position", "Position"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "Position + Position_Empty_Greater_Than_1_Year": {
+      "columns": ["Position", "Position_Empty_Greater_Than_1_Year"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "Position + Position_Has_Base_Incumbent": {
+      "columns": ["Position", "Position_Has_Base_Incumbent"],
+      "distinct": 3859,
+      "is_unique": true
+    },
+    "Position + Position_Title": {
+      "columns": ["Position", "Position_Title"],
+      "distinct": 3859,
+      "is_unique": true
+    }
+  },
+  "recommendation": "Single key: Position"
+}
