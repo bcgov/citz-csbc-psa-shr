@@ -43,7 +43,7 @@ library(jsonlite)
 # --- CONFIGURATION: Set your API name here -----------------------------------
 # Change this value for each new API you want to discover.
 
-api_name <- "Datamart_CITZ_Report_usp_SO001HRORG"
+api_name <- "Datamart_CITZ_Report_SHR010HRORG"
 
 # --- Resolve project root and load environment config ------------------------
 

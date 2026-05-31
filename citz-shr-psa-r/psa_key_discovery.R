@@ -43,7 +43,7 @@ library(tibble)
 
 # --- CONFIGURATION: Set your API name here -----------------------------------
 
-api_name <- "Datamart_CITZ_Report_usp_SO001HRORG"
+api_name <- "Datamart_CITZ_Report_SHR010HRORG"
 
 # --- Resolve project root and load environment config ------------------------
 
