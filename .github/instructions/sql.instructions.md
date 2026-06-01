@@ -126,6 +126,32 @@ Include both PosPosition and EmplId as key columns
 Exclude report metadata
 
 
+Audit Table Column Types (CRITICAL)
+Standardized as of API 6 (Datamart_CITZ_Report_EmptyPositionCount) onboarding.
+A typed audit table (DATE/INT/DECIMAL/BIT for Old/New) caused the MERGE OUTPUT
+INTO clause to fail with "Error converting data type" the moment any source
+column's type drifted. The fix is uniform: audit Old/New columns are always
+NVARCHAR(255), and the MERGE OUTPUT explicitly casts every value.
+
+Rules
+- All Old/New columns must be NVARCHAR(255) NULL — including OldIsActive/NewIsActive.
+- OldRowHash / NewRowHash remain VARBINARY(32).
+- Never use DATE, INT, DECIMAL, or BIT for Old/New audit columns.
+- AuditId BIGINT IDENTITY, RunId UNIQUEIDENTIFIER, AuditDtmUtc DATETIME2(0),
+  ActionType VARCHAR(12) — these keep their native types.
+- Business key columns keep their native types (e.g., DATE EffDt, INT EffSeq).
+- MERGE OUTPUT must explicitly CAST every deleted.* / inserted.* value to
+  NVARCHAR(255):
+    NVARCHAR / VARCHAR  -> CAST(deleted.Col AS NVARCHAR(255))
+    DATE                -> CONVERT(NVARCHAR(255), deleted.Col, 23)
+    INT / DECIMAL / BIT -> CAST(deleted.Col AS NVARCHAR(255))
+
+Rationale
+NVARCHAR(255) is a type-agnostic landing zone. It removes all OUTPUT bind
+fragility, survives schema drift, and lets the audit table accept any value
+the source produces without conversion errors.
+
+
 JSON Field Name Comments
 When JSON field names differ from SQL column names:
 Example:

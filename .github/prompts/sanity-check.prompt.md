@@ -102,6 +102,19 @@ Exclusions:
 
 Report metadata NOT included
 
+Audit Type Check (CRITICAL — added after API 6 EPC failure):
+
+ALL Old/New columns are NVARCHAR(255) NULL — including OldIsActive/NewIsActive
+OldRowHash / NewRowHash are VARBINARY(32) NULL
+Reject if any Old/New column is DATE, INT, DECIMAL, BIT, BINARY, or any other type
+AuditId is BIGINT IDENTITY, ActionType is VARCHAR(12)
+Corresponding 04_merge_proc.sql OUTPUT clause CASTs every deleted.* / inserted.*
+  value to NVARCHAR(255):
+    NVARCHAR/VARCHAR  -> CAST(... AS NVARCHAR(255))
+    DATE              -> CONVERT(NVARCHAR(255), ..., 23)
+    INT/DECIMAL/BIT   -> CAST(... AS NVARCHAR(255))
+Reject if any deleted.* / inserted.* appears without an explicit CAST/CONVERT
+
 
 6. MERGE Procedure Validation (ddl/04_merge_proc.sql)
 Verify ALL of the following:

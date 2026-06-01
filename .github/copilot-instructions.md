@@ -94,6 +94,27 @@ AND ISNULL(tgt.EmplId, '') = ISNULL(src.EmplId, '')
 
 Include all key columns in HASHBYTES. NEVER include attributes or report metadata.
 
+## Audit Type Safety (CRITICAL)
+
+Old/New audit columns must always be `NVARCHAR(255) NULL` — including
+`OldIsActive` / `NewIsActive`. Never type them as DATE, INT, DECIMAL, or BIT.
+
+The MERGE OUTPUT clause must explicitly CAST every `deleted.*` / `inserted.*`
+value to `NVARCHAR(255)`:
+
+- NVARCHAR / VARCHAR → `CAST(deleted.Col AS NVARCHAR(255))`
+- DATE → `CONVERT(NVARCHAR(255), deleted.Col, 23)`
+- INT / DECIMAL / BIT → `CAST(deleted.Col AS NVARCHAR(255))`
+
+Keep native types only for: `AuditId BIGINT IDENTITY`, `RunId UNIQUEIDENTIFIER`,
+`AuditDtmUtc DATETIME2(0)`, `ActionType VARCHAR(12)`, business-key columns,
+`OldRowHash`/`NewRowHash VARBINARY(32)`.
+
+Root cause this rule prevents: API 6 (EPC) failed with
+`Error converting data type nvarchar to numeric` at MERGE OUTPUT INTO because
+audit columns were typed. Fixing the type contract once removes the entire
+class of failure.
+
 ## Sanity Check -- Business Key
 
 After dedup: `nrow(df)` MUST equal `nrow(unique(df[, key_cols]))`.

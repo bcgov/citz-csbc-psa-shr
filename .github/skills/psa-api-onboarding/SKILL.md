@@ -254,3 +254,48 @@ showing count by `DropReason`, latest `LoadDtmUtc`, and sample records.
 | > ~50 | `RowHash VARBINARY(32)` + `SHA2_256(CONCAT_WS(...))` |
 
 Overlap zone (50-55): prefer RowHash for readability and ease of maintenance.
+
+## API 6 (EPC): Audit Type Safety (CRITICAL)
+
+**Symptom:** EPC MERGE failed at runtime with
+`Error converting data type nvarchar to numeric` at `OUTPUT ... INTO
+dbo.Peoplesoft_EPC_Audit`. The audit table had typed Old/New columns
+(DATE, INT, DECIMAL, BIT, varying NVARCHAR widths). The MERGE OUTPUT bind
+attempted implicit conversion against the audit column types and failed
+the moment any source column's type or width drifted.
+
+**Root cause:** A typed audit table forces every MERGE OUTPUT to satisfy
+implicit conversion rules across the entire schema. Any drift -- a new
+NULL, a longer string, a non-numeric value in a previously numeric column
+-- breaks the entire MERGE.
+
+**Fix (applied uniformly across all 6 APIs):**
+
+1. Audit table standard
+   - All `Old*` / `New*` columns: `NVARCHAR(255) NULL` -- including
+     `OldIsActive` / `NewIsActive`.
+   - `OldRowHash` / `NewRowHash`: `VARBINARY(32) NULL`.
+   - Native types kept only for: `AuditId BIGINT IDENTITY`,
+     `RunId UNIQUEIDENTIFIER`, `AuditDtmUtc DATETIME2(0)`,
+     `ActionType VARCHAR(12)`, business-key columns.
+
+2. MERGE OUTPUT standard
+   - Every `deleted.*` / `inserted.*` value column is explicitly cast to
+     `NVARCHAR(255)`:
+     - NVARCHAR / VARCHAR -> `CAST(deleted.Col AS NVARCHAR(255))`
+     - DATE              -> `CONVERT(NVARCHAR(255), deleted.Col, 23)`
+     - INT / DECIMAL / BIT -> `CAST(deleted.Col AS NVARCHAR(255))`
+
+**Rationale:** NVARCHAR(255) is a type-agnostic landing zone. It removes
+all OUTPUT bind fragility, survives schema drift, and lets the audit table
+accept any value the source produces.
+
+**Prevention for APIs 7+:**
+- Generate audit DDL with all Old/New columns as `NVARCHAR(255) NULL`.
+- Generate MERGE OUTPUT with explicit CAST/CONVERT on every value.
+- The sanity-check prompt (`.github/prompts/sanity-check.prompt.md`)
+  now includes an "Audit Type Check" step that rejects any DATE, INT,
+  DECIMAL, BIT, or BINARY Old/New column, and rejects any uncast
+  `deleted.*` / `inserted.*` in OUTPUT.
+- Codified in `.github/instructions/sql.instructions.md` (Audit Table
+  Column Types) and `.github/copilot-instructions.md` (Audit Type Safety).
