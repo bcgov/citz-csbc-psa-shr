@@ -187,6 +187,28 @@ entities. The pipeline must handle key discovery, dedup, and flexible staging.
 - No report metadata columns
 - Dropped reasons: `'NULL_EMPLOYEEID'`, `'DUPLICATE_COMPOSITE_KEY'`
 
+## API 6: Datamart_CITZ_Report_EmptyPositionCount (EPC)
+
+- HTTP: GET, ~3,859 rows, reporting prefix `epc__`
+- **Single-column key:** `Position` (NVARCHAR(20), 100% unique, 0 nulls)
+- No deduplication needed; staging enforces PK on `Position`
+- **Report metadata:** `As_Of_Date` (JSON key) -> `AsOfDate` (1 distinct value
+  per run, snapshot date) -- stored in staging for lineage, EXCLUDED from
+  target/audit/MERGE/HASHBYTES
+- `Business_Unit_Descr` and `Organization` each have 1 distinct value; these
+  are positional ATTRIBUTES (org scope filter), NOT report metadata -- include
+  in target and HASHBYTES
+- 39 columns total (38 tracked; 37 in MERGE WHEN MATCHED); individual column
+  comparisons used (37 < threshold of ~50)
+- **JSON field `core` is lowercase** -- rename must use `Core = "core"` (same
+  as TIP; two APIs now with this pattern)
+- API URL requires `?$top=5000` page-size parameter; `req_timeout(600)`
+- Nullable fields: EmptyEffDt (~2925), LastIncumbents (~2925), BaseIncumbents
+  (~1225), IncumbentCount (~1173), Incumbents (~1173), Supervisor (~578),
+  ProgramBranch (~108), JobReqOpenDate (~3474), JobReqStatus (~3474)
+- Dropped reason: `'NULL_POSITION'` (protective guardrail; 0 null positions
+  observed in analysis)
+
 ---
 
 # Cross-Cutting Lessons
