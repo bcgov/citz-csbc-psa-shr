@@ -132,11 +132,13 @@ BEGIN
         OR ISNULL(tgt.ExitReasonDescr, '')                 <> ISNULL(src.ExitReasonDescr, '')
         OR ISNULL(tgt.ExitSeq, -1)                         <> ISNULL(src.ExitSeq, -1)
         OR ISNULL(tgt.ExitStdHours, -1)                    <> ISNULL(src.ExitStdHours, -1)
-        -- DaysInPosition / YearsInPosition / AccumulatedYearsInPositions excluded —
-        -- continuously-computed to AsOfDate while ExitDate IS NULL (active position);
-        -- change daily for every active entry and would produce 100% false UPDATEs.
-        OR ISNULL(tgt.AgeAtEntry, -1)                      <> ISNULL(src.AgeAtEntry, -1)
-        OR ISNULL(tgt.AgeAtExit, -1)                       <> ISNULL(src.AgeAtExit, -1)
+        -- DaysInPosition / YearsInPosition / AccumulatedYearsInPositions / AgeAtEntry / AgeAtExit excluded —
+        -- All five are continuously-computed from AsOfDate by the PeopleSoft report engine:
+        --   DaysInPosition / YearsInPosition: days/years from EntryDate to AsOfDate (active entries only)
+        --   AccumulatedYearsInPositions: cumulative years across all positions to AsOfDate
+        --   AgeAtEntry / AgeAtExit: stored as DECIMAL(10,4) and recomputed as of AsOfDate each run
+        -- Including any of these in WHEN MATCHED produces false UPDATEs for every active entry.
+        -- Values are still written via UPDATE SET so the latest value is always stored.
         OR ISNULL(tgt.ClassificationGroupAtEntry, '')      <> ISNULL(src.ClassificationGroupAtEntry, '')
         OR ISNULL(tgt.JobCodeAtEntry, '')                  <> ISNULL(src.JobCodeAtEntry, '')
         OR ISNULL(tgt.JobCodeDescAtEntry, '')              <> ISNULL(src.JobCodeDescAtEntry, '')
