@@ -173,6 +173,19 @@ ActionType correctly derived
 Transaction + TRY/CATCH exists
 Summary SELECT at end
 
+OUTPUT/INTO Column Alignment Check (CRITICAL — silent data corruption if wrong):
+
+SQL Server assigns OUTPUT values to INTO columns by POSITION, not by alias name.
+Print the OUTPUT expression list and the INTO column list side by side.
+Verify EVERY row matches — not just the first few.
+
+Valid patterns (pick one and use it consistently throughout the proc):
+  Sequential: OUTPUT all Olds then all News → INTO all Olds then all News
+  Interleaved: OUTPUT Old/New pairs → INTO Old/New pairs
+
+Reject if OUTPUT is sequential but INTO is interleaved (or vice versa).
+This is a silent bug — SQL Server writes values to wrong columns without error.
+
 
 7. R ETL Script Validation
 Verify:

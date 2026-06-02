@@ -371,48 +371,30 @@ BEGIN
             CAST(inserted.Supervisor                 AS NVARCHAR(255))     AS NewSupervisor,
             CAST(inserted.YearsEmpty                 AS NVARCHAR(255))     AS NewYearsEmpty
 
+        -- ALIGNMENT NOTE: INTO column order MUST match OUTPUT expression order exactly.
+        -- OUTPUT produces: all Old columns (sequential), then all New columns (sequential).
+        -- INTO must list them in the same sequential order — NOT interleaved pairs.
         INTO dbo.Peoplesoft_EPC_Audit
         (
             RunId, ActionType, Position,
             OldRowHash, NewRowHash,
             OldIsActive, NewIsActive,
-            OldBaseIncumbents,          NewBaseIncumbents,
-            OldBusinessUnitDescr,       NewBusinessUnitDescr,
-            OldCity,                    NewCity,
-            OldClassificationGroup,     NewClassificationGroup,
-            OldCore,                    NewCore,
-            OldCreateEffDt,             NewCreateEffDt,
-            OldDeptId,                  NewDeptId,
-            OldDeptIdDesc,              NewDeptIdDesc,
-            OldDevelopmentRegion,       NewDevelopmentRegion,
-            OldEmptyEffDt,              NewEmptyEffDt,
-            OldEmptyPosition,           NewEmptyPosition,
-            OldExcludedOrIncluded,      NewExcludedOrIncluded,
-            OldIncumbentCount,          NewIncumbentCount,
-            OldIncumbents,              NewIncumbents,
-            OldJobCode,                 NewJobCode,
-            OldJobCodeDesc,             NewJobCodeDesc,
-            OldJobFunc,                 NewJobFunc,
-            OldJobReqOpenDate,          NewJobReqOpenDate,
-            OldJobReqStatus,            NewJobReqStatus,
-            OldLastIncumbents,          NewLastIncumbents,
-            OldLocation,               NewLocation,
-            OldNocCode,                 NewNocCode,
-            OldNocCodeDescr,            NewNocCodeDescr,
-            OldOrganization,            NewOrganization,
-            OldPosStatusDescr,          NewPosStatusDescr,
-            OldPositionEmptyGt1Year,    NewPositionEmptyGt1Year,
-            OldPositionHasBaseIncumbent, NewPositionHasBaseIncumbent,
-            OldPositionTitle,           NewPositionTitle,
-            OldProgram,                 NewProgram,
-            OldProgramBranch,           NewProgramBranch,
-            OldProgramDivision,         NewProgramDivision,
-            OldProvincialQuadrant,      NewProvincialQuadrant,
-            OldRegDistrictDesc,         NewRegDistrictDesc,
-            OldRegOrTempDescr,          NewRegOrTempDescr,
-            OldReportsTo,              NewReportsTo,
-            OldSupervisor,              NewSupervisor,
-            OldYearsEmpty,              NewYearsEmpty
+            OldBaseIncumbents, OldBusinessUnitDescr, OldCity, OldClassificationGroup,
+            OldCore, OldCreateEffDt, OldDeptId, OldDeptIdDesc, OldDevelopmentRegion,
+            OldEmptyEffDt, OldEmptyPosition, OldExcludedOrIncluded, OldIncumbentCount, OldIncumbents,
+            OldJobCode, OldJobCodeDesc, OldJobFunc, OldJobReqOpenDate, OldJobReqStatus,
+            OldLastIncumbents, OldLocation, OldNocCode, OldNocCodeDescr, OldOrganization,
+            OldPosStatusDescr, OldPositionEmptyGt1Year, OldPositionHasBaseIncumbent, OldPositionTitle,
+            OldProgram, OldProgramBranch, OldProgramDivision, OldProvincialQuadrant,
+            OldRegDistrictDesc, OldRegOrTempDescr, OldReportsTo, OldSupervisor, OldYearsEmpty,
+            NewBaseIncumbents, NewBusinessUnitDescr, NewCity, NewClassificationGroup,
+            NewCore, NewCreateEffDt, NewDeptId, NewDeptIdDesc, NewDevelopmentRegion,
+            NewEmptyEffDt, NewEmptyPosition, NewExcludedOrIncluded, NewIncumbentCount, NewIncumbents,
+            NewJobCode, NewJobCodeDesc, NewJobFunc, NewJobReqOpenDate, NewJobReqStatus,
+            NewLastIncumbents, NewLocation, NewNocCode, NewNocCodeDescr, NewOrganization,
+            NewPosStatusDescr, NewPositionEmptyGt1Year, NewPositionHasBaseIncumbent, NewPositionTitle,
+            NewProgram, NewProgramBranch, NewProgramDivision, NewProvincialQuadrant,
+            NewRegDistrictDesc, NewRegOrTempDescr, NewReportsTo, NewSupervisor, NewYearsEmpty
         );
 
         COMMIT TRAN;

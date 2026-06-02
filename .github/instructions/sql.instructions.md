@@ -198,6 +198,30 @@ target (keep in UPDATE SET) so reported values stay current whenever a real chan
 Date comparison — both forms prohibited in WHEN MATCHED
 - Bare <> : silently misses NULL-to-value transitions (false negative)
 - CONVERT(NVARCHAR, col, 23) : unnecessary overhead; inconsistent with native-type rule
+
+
+OUTPUT/INTO Column Alignment (CRITICAL)
+Root cause: EPC MERGE proc had interleaved INTO (Old1,New1,Old2,New2...) but sequential
+OUTPUT (all Olds then all News). SQL Server assigns columns by position, not alias.
+Result: every value was written to the wrong audit column — date columns contained
+names, name columns contained position IDs, etc. (silent, no error thrown).
+
+Rule: The OUTPUT clause expression order MUST exactly match the INTO column list order.
+SQL Server does NOT match by column alias — it maps purely by ordinal position.
+
+Verification method: print both lists side by side and compare row-by-row.
+
+Two valid patterns (both correct internally, never mix them):
+
+  SEQUENTIAL (OUTPUT: all Olds then all News, INTO: same)
+    OUTPUT: deleted.A AS OldA, deleted.B AS OldB, inserted.A AS NewA, inserted.B AS NewB
+    INTO:   OldA, OldB, NewA, NewB
+
+  INTERLEAVED (OUTPUT: paired, INTO: paired)
+    OUTPUT: deleted.A AS OldA, inserted.A AS NewA, deleted.B AS OldB, inserted.B AS NewB
+    INTO:   OldA, NewA, OldB, NewB
+
+Forbidden: OUTPUT sequential + INTO interleaved (or vice versa) — corrupts all audit data.
 Use the ISNULL sentinel pattern for all nullable DATE columns.
 
 
