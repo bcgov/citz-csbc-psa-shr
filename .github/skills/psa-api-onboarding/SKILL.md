@@ -370,3 +370,57 @@ Safe (truly snapshotted to a historical date, NOT continuously computed):
   open (e.g., `ExitDate IS NULL`) \u2014 same problem, only on the active subset.
 - Use the rule codified in `.github/instructions/sql.instructions.md`
   (WHEN MATCHED Comparison Rules → Continuously-computed columns).
+---
+
+## Model Selection Guide
+
+This guide helps the human operator choose the correct model in VS Code Copilot Chat. Auto model selection is useful but does NOT include high-reasoning models like Opus, so manual overrides are required for certain tasks.
+
+### Model Selection Table
+
+| Task | Recommended Model | Reason |
+|------|------------------|--------|
+| Single API onboarding (≤ 30 files) | Auto or Sonnet | Fast, efficient, follows patterns well |
+| Multi-API batch onboarding (≥ 2 APIs / ≥ 60 files) | Opus (manual select) | Better at maintaining consistency across large outputs |
+| Schema/key discovery analysis | Opus (manual select) | Requires deeper reasoning and pattern recognition |
+| Complex merge logic / composite key design | Opus (manual select) | High reasoning complexity |
+| Debugging specific SQL or R errors | Auto or Sonnet | Focused, fast response |
+| Reporting SQL generation | Auto or Sonnet | Repetitive pattern-based work |
+| Full-file rewrites (large SQL/R scripts) | Opus (manual select) | Avoids truncation / output limits |
+| Documentation (MD updates) | Auto or Sonnet | Both perform well |
+
+### Important Notes
+
+- Auto model selection does NOT route to Opus-class models.
+- Auto optimizes for cost, speed, and availability — not maximum reasoning capability.
+- Opus must be selected manually from the model picker when needed.
+- Use Opus for:
+  - Large outputs
+  - Cross-file consistency
+  - Architecture decisions
+- Use Auto for default workflows (recommended baseline).
+
+### Operational Rule
+
+Default to Auto for day-to-day work.
+
+Switch to Opus manually when:
+- Output size is large (multi-file generation)
+- The problem requires deeper reasoning
+- You observe pattern drift or inconsistent outputs
+- You hit response length limits
+## Public Repo Sanitization Rule (CRITICAL)
+
+This repository is public. Sample/example values in any committed artifact
+MUST be bogus, format-preserving placeholders -- never real BC Gov data.
+
+- Never commit real names, EmplIds, position numbers, jobcodes, deptids,
+  emails, IDIRs, birthdates, hire dates, or salary figures.
+- Schema JSON sample rows, key-analysis JSON, SQL comment examples, R
+  script comment examples, and markdown docs are all in scope.
+- Preserve structure, keys, data types, counts, and business rules; redact
+  only the literal sensitive values.
+- Use the standard placeholders: name "Sample,Person", emplid "999999",
+  position "00099999" / "00088888" / "00077777", jobcode "999999",
+  email "sample.person@example.gov", IDIR "sampleperson", birthdate
+  "1990-01-01", salary 99999.0000 / 9999.99 / 99.9999.

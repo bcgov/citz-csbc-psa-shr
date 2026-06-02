@@ -9,8 +9,8 @@
 -- Evidence:
 --   OldCreateEffDt = 'YES'          (should be a date; received OldEmptyPosition)
 --   NewCreateEffDt = 'Included'     (should be a date; received OldExcludedOrIncluded)
---   NewEmptyEffDt  = 'Monk,Deborah M' (should be a date; received OldLastIncumbents)
---   OldJobReqOpenDate = '00075546'  (should be a date; received OldReportsTo)
+--   NewEmptyEffDt  = 'Sample,Person M' (should be a date; received OldLastIncumbents)
+--   OldJobReqOpenDate = '00099999'  (should be a date; received OldReportsTo)
 --
 -- Fix applied: ddl/04_merge_proc.sql INTO clause rewritten to sequential order
 --              matching the OUTPUT clause on <date of fix>.

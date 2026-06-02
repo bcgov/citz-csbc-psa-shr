@@ -137,3 +137,34 @@ PeopleSoftAPI/<exact_api_name>/
   schemas/
     <api_name>_schema.json
 ```
+
+## Public Repo Sanitization Rule (CRITICAL)
+
+This repository is published publicly. Any sample/example values committed
+here MUST be bogus, format-preserving placeholders -- never real BC Gov data.
+
+Applies to: schema JSON, key-analysis JSON, SQL comments, R script comments,
+markdown docs, prompt files, skill files.
+
+Forbidden in committed files:
+- Real employee names (e.g., "Doe,Bob"), even initials of a real person
+- Real EmplIds, position numbers, jobcodes, deptids tied to actual rows
+- Real email addresses, IDIRs, birthdates, hire dates of real employees
+- Real annual / hourly / comp salary figures
+- Real supervisor names or supervisor emails
+- Any literal value copied from a PROD API response without sanitization
+
+Allowed (preserve as-is):
+- API names, table/view/proc/column names
+- JSON keys and structure
+- Data types, NULL/empty patterns, business rules
+- Row counts, distinct counts, null counts, uniqueness flags
+- Synthetic placeholders: "Sample,Person", emplid "999999",
+  position "00099999", "00088888", "00077777", jobcode "999999",
+  email "sample.person@example.gov", IDIR "sampleperson",
+  birthdate "1990-01-01", salaries 99999.0000 / 9999.99 / 99.9999.
+
+Before committing a new schema sample row, key-analysis sample, or SQL
+comment example: redact every personal/staffing/compensation literal using
+the placeholders above. Within a single file, keep placeholder values
+consistent (same fake EmplId for the same person across fields).

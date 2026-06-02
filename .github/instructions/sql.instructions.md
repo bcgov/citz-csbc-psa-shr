@@ -387,3 +387,18 @@ hash output between NULL and empty string — preventing false change detections
 
 Reference implementation: Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ
 (140 columns, 136 data columns in hash)
+## Public Repo Sanitization Rule (CRITICAL)
+
+This repository is public. Sample/example values in any committed artifact
+MUST be bogus, format-preserving placeholders -- never real BC Gov data.
+
+- Never commit real names, EmplIds, position numbers, jobcodes, deptids,
+  emails, IDIRs, birthdates, hire dates, or salary figures.
+- Schema JSON sample rows, key-analysis JSON, SQL comment examples, R
+  script comment examples, and markdown docs are all in scope.
+- Preserve structure, keys, data types, counts, and business rules; redact
+  only the literal sensitive values.
+- Use the standard placeholders: name "Sample,Person", emplid "999999",
+  position "00099999" / "00088888" / "00077777", jobcode "999999",
+  email "sample.person@example.gov", IDIR "sampleperson", birthdate
+  "1990-01-01", salary 99999.0000 / 9999.99 / 99.9999.

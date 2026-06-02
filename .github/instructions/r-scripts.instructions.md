@@ -145,3 +145,19 @@ Use `Sys.sleep(0.2)` between pages.
 ## Report Metadata
 
 Include in staging columns + type conversion. EXCLUDE from MERGE ON, HASHBYTES, target.
+
+## Public Repo Sanitization Rule (CRITICAL)
+
+This repository is public. Sample/example values in any committed artifact
+MUST be bogus, format-preserving placeholders -- never real BC Gov data.
+
+- Never commit real names, EmplIds, position numbers, jobcodes, deptids,
+  emails, IDIRs, birthdates, hire dates, or salary figures.
+- Schema JSON sample rows, key-analysis JSON, SQL comment examples, R
+  script comment examples, and markdown docs are all in scope.
+- Preserve structure, keys, data types, counts, and business rules; redact
+  only the literal sensitive values.
+- Use the standard placeholders: name "Sample,Person", emplid "999999",
+  position "00099999" / "00088888" / "00077777", jobcode "999999",
+  email "sample.person@example.gov", IDIR "sampleperson", birthdate
+  "1990-01-01", salary 99999.0000 / 9999.99 / 99.9999.
