@@ -134,7 +134,8 @@ BEGIN
             OR ISNULL(tgt.EmplId,              '') <> ISNULL(src.EmplId,              '')
             OR ISNULL(tgt.EmplStatus,          '') <> ISNULL(src.EmplStatus,          '')
             OR ISNULL(tgt.Appt,                '') <> ISNULL(src.Appt,                '')
-            OR ISNULL(tgt.Age,                 -1) <> ISNULL(src.Age,                 -1)
+            -- Age excluded — continuously-computed from Birthdate + AsOfDate;
+            -- changes on every employee's birthday and would produce false UPDATEs.
             OR ISNULL(tgt.PosClassMax,         '') <> ISNULL(src.PosClassMax,         '')
             OR ISNULL(tgt.JobClassMax,         '') <> ISNULL(src.JobClassMax,         '')
             OR ISNULL(tgt.Annual,              '') <> ISNULL(src.Annual,              '')
@@ -336,7 +337,7 @@ BEGIN
                 COALESCE(deleted.StandardHours,       ''), COALESCE(deleted.Base,                ''),
                 COALESCE(deleted.Name,                ''), COALESCE(deleted.EmplId,              ''),
                 COALESCE(deleted.EmplStatus,          ''), COALESCE(deleted.Appt,                ''),
-                COALESCE(CONVERT(NVARCHAR(20), deleted.Age), ''),
+                -- Age excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
                 COALESCE(deleted.PosClassMax,         ''), COALESCE(deleted.JobClassMax,         ''),
                 COALESCE(deleted.Annual,              ''), COALESCE(deleted.Abbr,                ''),
                 COALESCE(deleted.AdminPlan,           ''),
@@ -384,7 +385,7 @@ BEGIN
                 COALESCE(inserted.StandardHours,       ''), COALESCE(inserted.Base,                ''),
                 COALESCE(inserted.Name,                ''), COALESCE(inserted.EmplId,              ''),
                 COALESCE(inserted.EmplStatus,          ''), COALESCE(inserted.Appt,                ''),
-                COALESCE(CONVERT(NVARCHAR(20), inserted.Age), ''),
+                -- Age excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
                 COALESCE(inserted.PosClassMax,         ''), COALESCE(inserted.JobClassMax,         ''),
                 COALESCE(inserted.Annual,              ''), COALESCE(inserted.Abbr,                ''),
                 COALESCE(inserted.AdminPlan,           ''),

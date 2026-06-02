@@ -174,6 +174,33 @@ MUST be resolved BEFORE MERGE
 DO NOT attempt to resolve inside SQL MERGE
 
 
+WHEN MATCHED Comparison Rules (CRITICAL)
+Compare columns using their NATIVE types. Never cast to NVARCHAR for comparison.
+Incorrect casting causes false UPDATE detection on every row every run.
+
+Pattern by column type
+- STRING  : ISNULL(tgt.Col, '') <> ISNULL(src.Col, '')
+- DATE    : ISNULL(tgt.Col, '1900-01-01') <> ISNULL(src.Col, '1900-01-01')
+- INT     : ISNULL(tgt.Col, -1) <> ISNULL(src.Col, -1)
+- DECIMAL : ISNULL(ROUND(tgt.Col, 4), -1) <> ISNULL(ROUND(src.Col, 4), -1)
+
+CAST to NVARCHAR(255) is ONLY for the OUTPUT clause (audit writes).
+Using CAST/CONVERT in WHEN MATCHED causes false UPDATE detection.
+
+Continuously-computed columns (EXCLUDE from WHEN MATCHED and HASHBYTES)
+Some API columns are calculated at query time and change every run:
+- AsOfDate / RunDate / ReportDate — snapshot date, identical for all rows per run.
+- Age (DECIMAL) — computed from Birthdate + AsOfDate. Changes daily by ~1/365.25
+  for every employee, causing 100% false UPDATE events on every run.
+Rule: exclude these columns from WHEN MATCHED and HASHBYTES, but store them in the
+target (keep in UPDATE SET) so reported values stay current whenever a real change fires.
+
+Date comparison — both forms prohibited in WHEN MATCHED
+- Bare <> : silently misses NULL-to-value transitions (false negative)
+- CONVERT(NVARCHAR, col, 23) : unnecessary overhead; inconsistent with native-type rule
+Use the ISNULL sentinel pattern for all nullable DATE columns.
+
+
 Dropped Records Tables
 
 For every report-style API, create a parallel dropped-records staging table:

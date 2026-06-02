@@ -299,3 +299,59 @@ accept any value the source produces.
   `deleted.*` / `inserted.*` in OUTPUT.
 - Codified in `.github/instructions/sql.instructions.md` (Audit Table
   Column Types) and `.github/copilot-instructions.md` (Audit Type Safety).
+
+---
+
+## API 7 (SHR010HRORG): Continuously-Computed Columns in WHEN MATCHED (CRITICAL)
+
+**Symptom:** Run 1 (2026-05-31) produced 2764 INSERTs, 0 UPDATEs (correct —
+first load). Run 2 (2026-06-02) produced 2 INSERTs, 2759 UPDATEs, 5 soft
+deletes. Expected: near-zero UPDATEs (no real data changed).
+
+**Root cause:** `Age DECIMAL(8,4)` was included in the `WHEN MATCHED`
+comparison. PeopleSoft computes `Age` continuously as
+`(AsOfDate - Birthdate) / 365.25`. Since `AsOfDate` increments daily, `Age`
+changes by approximately 1/365.25 per day for every employee. Over 2 days,
+every employee's `Age` differs by ~0.0055. The DECIMAL comparison fired for
+every matched row, producing 100% false UPDATE detection.
+
+**Why it looks correct but isn't:** `Age` uses a native DECIMAL-to-DECIMAL
+comparison (`ISNULL(tgt.Age, -1) <> ISNULL(src.Age, -1)`), which is the
+correct type pattern. The bug is not in the comparison syntax -- it is in
+including a column whose value is mathematically guaranteed to change on every
+run. The same root cause as `AsOfDate`.
+
+**Fix applied to `usp_Merge_PeopleSoft_SHR010HRORG`:**
+1. Removed `OR ISNULL(tgt.Age, -1) <> ISNULL(src.Age, -1)` from `WHEN MATCHED`.
+2. Removed `Age` from both `OldRowHash` and `NewRowHash` `HASHBYTES` calls.
+3. Kept `Age` in `UPDATE SET` (stays current whenever a real change fires).
+4. Kept `OldAge` / `NewAge` in `OUTPUT` (informational context in audit).
+5. Also fixed 5 nullable DATE columns that used bare `<>` (misses NULL-to-value
+   transitions) and 3 that used `CONVERT(NVARCHAR(10), col, 23)` (unnecessary)
+   -- all replaced with `ISNULL(tgt.Col, '1900-01-01') <> ISNULL(src.Col, '1900-01-01')`.
+
+**Audit across all 6 APIs (performed after SHR010HRORG fix):**
+Same root cause found in 3 other procs. All fixed identically (removed from
+WHEN MATCHED and HASHBYTES; kept in UPDATE SET and OUTPUT):
+
+| API | Column | Type | Computed from |
+|---|---|---|---|
+| SO001HRORG | `Age` | `INT` | `AsOfDate − Birthdate` |
+| EPC | `YearsEmpty` | `DECIMAL(10,4)` | `AsOfDate − EmptyEffDt` |
+| TIP | `DaysInPosition` | `INT` | `AsOfDate − FirstDateInPosition` (active rows) |
+| TIP | `YearsInPosition` | `DECIMAL(10,4)` | `DaysInPosition / 365.25` (active rows) |
+| TIP | `AccumulatedYearsInPositions` | `DECIMAL(10,4)` | includes current active position |
+
+Safe (snapshotted to historical date, NOT continuously computed):
+`TIP.AgeAtEntry`, `TIP.AgeAtExit`, `HEM.Estimated*` (all event-snapshot to `EffDt`).
+
+**Prevention for APIs 7+:**
+- Before writing WHEN MATCHED, classify every non-STRING column:
+  - Is it computed from `AsOfDate` or the current run date? → EXCLUDE.
+  - Is it snapshotted to a historical event date? → INCLUDE.
+- Common red-flag names: `Age*` (unless `*At<Event>`), `Years*`, `Days*`,
+  `Months*`, `Duration*`, `TimeIn*`, `*OfService` (unless snapshotted).
+- Conditional-active red flag: columns that only change while an event is
+  open (e.g., `ExitDate IS NULL`) \u2014 same problem, only on the active subset.
+- Use the rule codified in `.github/instructions/sql.instructions.md`
+  (WHEN MATCHED Comparison Rules → Continuously-computed columns).

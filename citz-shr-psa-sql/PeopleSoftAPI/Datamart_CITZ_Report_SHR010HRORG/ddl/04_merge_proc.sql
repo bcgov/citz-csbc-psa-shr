@@ -81,8 +81,11 @@ BEGIN
 
         --------------------------------------------------------------------
         -- MERGE (UPSERT) + SOFT DELETE + AUDIT OUTPUT
-        -- AsOfDate is excluded from all comparisons and HASHBYTES —
-        -- it is identical for all rows per run and would cause false daily UPDATEs.
+        -- AsOfDate excluded from all comparisons and HASHBYTES — it is identical for all rows
+        -- per run and would cause false daily UPDATEs.
+        -- Age (DECIMAL(8,4)) excluded from WHEN MATCHED and HASHBYTES — it is a continuously-
+        -- computed value derived from Birthdate + AsOfDate. It changes daily for every employee
+        -- (delta ≈ 1/365.25 per day) and would produce 100% false UPDATE events on every run.
         --------------------------------------------------------------------
         ;MERGE dbo.Peoplesoft_SHR010HRORG WITH (HOLDLOCK) AS tgt
         USING dbo.Stg_Peoplesoft_SHR010HRORG AS src
@@ -102,14 +105,14 @@ BEGIN
             OR ISNULL(tgt.EmplRcd,       -1) <> ISNULL(src.EmplRcd,       -1)
             OR ISNULL(tgt.ApptStatus,    '') <> ISNULL(src.ApptStatus,    '')
             OR ISNULL(tgt.ApptStatusCode,'') <> ISNULL(src.ApptStatusCode,'')
-            -- Dates (NOT NULL columns: direct compare; nullable: CONVERT-based)
-            OR tgt.Birthdate                <> src.Birthdate
-            OR tgt.HireDt                   <> src.HireDt
-            OR ISNULL(CONVERT(NVARCHAR(10), tgt.LastHireDt,              23), '') <> ISNULL(CONVERT(NVARCHAR(10), src.LastHireDt,              23), '')
-            OR tgt.MostHistoricDate         <> src.MostHistoricDate
-            OR tgt.FirstDateInOrganization  <> src.FirstDateInOrganization
-            OR tgt.FirstDateInPosition      <> src.FirstDateInPosition
-            OR ISNULL(CONVERT(NVARCHAR(10), tgt.FutureReturnDate,         23), '') <> ISNULL(CONVERT(NVARCHAR(10), src.FutureReturnDate,         23), '')
+            -- Dates (all nullable; ISNULL sentinel '1900-01-01' for NULL-safe native DATE comparison)
+            OR ISNULL(tgt.Birthdate,               '1900-01-01') <> ISNULL(src.Birthdate,               '1900-01-01')
+            OR ISNULL(tgt.HireDt,                  '1900-01-01') <> ISNULL(src.HireDt,                  '1900-01-01')
+            OR ISNULL(tgt.LastHireDt,              '1900-01-01') <> ISNULL(src.LastHireDt,              '1900-01-01')
+            OR ISNULL(tgt.MostHistoricDate,        '1900-01-01') <> ISNULL(src.MostHistoricDate,        '1900-01-01')
+            OR ISNULL(tgt.FirstDateInOrganization, '1900-01-01') <> ISNULL(src.FirstDateInOrganization, '1900-01-01')
+            OR ISNULL(tgt.FirstDateInPosition,     '1900-01-01') <> ISNULL(src.FirstDateInPosition,     '1900-01-01')
+            OR ISNULL(tgt.FutureReturnDate,        '1900-01-01') <> ISNULL(src.FutureReturnDate,        '1900-01-01')
             -- Position / job
             OR ISNULL(tgt.PositionNbr,      '') <> ISNULL(src.PositionNbr,      '')
             OR ISNULL(tgt.TgbBasePosition,  '') <> ISNULL(src.TgbBasePosition,  '')
@@ -147,10 +150,9 @@ BEGIN
             -- Location
             OR ISNULL(tgt.Location,         '') <> ISNULL(src.Location,         '')
             OR ISNULL(tgt.LocationCity,     '') <> ISNULL(src.LocationCity,     '')
-            -- Demographics
+            -- Demographics (Age excluded — continuously-computed; see note at top of MERGE block)
             OR ISNULL(tgt.AgeGroup1,        '') <> ISNULL(src.AgeGroup1,        '')
             OR ISNULL(tgt.AgeGroup2,        '') <> ISNULL(src.AgeGroup2,        '')
-            OR ISNULL(tgt.Age,              -1) <> ISNULL(src.Age,              -1)
             OR ISNULL(tgt.Generation,       '') <> ISNULL(src.Generation,       '')
             OR ISNULL(tgt.EligibleForPension,          '') <> ISNULL(src.EligibleForPension,          '')
             OR ISNULL(tgt.EligibleForUnreducedPension, '') <> ISNULL(src.EligibleForUnreducedPension, '')
@@ -161,7 +163,7 @@ BEGIN
             OR ISNULL(tgt.SupervisorStatus, '') <> ISNULL(src.SupervisorStatus, '')
             -- Leave / layoff
             OR ISNULL(tgt.LayoffLeaveStopPayReason,    '') <> ISNULL(src.LayoffLeaveStopPayReason,    '')
-            OR ISNULL(CONVERT(NVARCHAR(10), tgt.LayoffLeaveStopPayStartDate, 23), '') <> ISNULL(CONVERT(NVARCHAR(10), src.LayoffLeaveStopPayStartDate, 23), '')
+            OR ISNULL(tgt.LayoffLeaveStopPayStartDate, '1900-01-01') <> ISNULL(src.LayoffLeaveStopPayStartDate, '1900-01-01')
         )
         THEN UPDATE SET
             Name                         = src.Name,
@@ -289,7 +291,7 @@ BEGIN
             END AS ActionType,
             COALESCE(inserted.EmplId, deleted.EmplId) AS EmplId,
 
-            -- Old row hash (62 data columns; AsOfDate excluded)
+            -- Old row hash (61 data columns; AsOfDate and Age excluded — both continuously change per run)
             HASHBYTES('SHA2_256', CONCAT_WS('|',
                 COALESCE(deleted.Name,          ''), COALESCE(deleted.Idir,          ''),
                 COALESCE(deleted.EmailId,       ''), COALESCE(deleted.EmplStatus,    ''),
@@ -324,8 +326,7 @@ BEGIN
                 COALESCE(deleted.NocCodeDescr,  ''), COALESCE(deleted.ReportsTo,       ''),
                 COALESCE(deleted.Location,      ''), COALESCE(deleted.LocationCity,    ''),
                 COALESCE(deleted.AgeGroup1,     ''), COALESCE(deleted.AgeGroup2,       ''),
-                COALESCE(CONVERT(NVARCHAR(20), deleted.Age), ''),
-                COALESCE(deleted.Generation,    ''),
+                COALESCE(deleted.Generation,    ''),  -- Age excluded: continuously-computed, see MERGE note
                 COALESCE(deleted.EligibleForPension,          ''),
                 COALESCE(deleted.EligibleForUnreducedPension, ''),
                 COALESCE(deleted.Supervisor,    ''), COALESCE(deleted.SupervEmail,     ''),
@@ -370,8 +371,7 @@ BEGIN
                 COALESCE(inserted.NocCodeDescr,  ''), COALESCE(inserted.ReportsTo,       ''),
                 COALESCE(inserted.Location,      ''), COALESCE(inserted.LocationCity,    ''),
                 COALESCE(inserted.AgeGroup1,     ''), COALESCE(inserted.AgeGroup2,       ''),
-                COALESCE(CONVERT(NVARCHAR(20), inserted.Age), ''),
-                COALESCE(inserted.Generation,    ''),
+                COALESCE(inserted.Generation,    ''),  -- Age excluded: continuously-computed, see MERGE note
                 COALESCE(inserted.EligibleForPension,          ''),
                 COALESCE(inserted.EligibleForUnreducedPension, ''),
                 COALESCE(inserted.Supervisor,    ''), COALESCE(inserted.SupervEmail,     ''),

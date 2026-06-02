@@ -132,9 +132,9 @@ BEGIN
         OR ISNULL(tgt.ExitReasonDescr, '')                 <> ISNULL(src.ExitReasonDescr, '')
         OR ISNULL(tgt.ExitSeq, -1)                         <> ISNULL(src.ExitSeq, -1)
         OR ISNULL(tgt.ExitStdHours, -1)                    <> ISNULL(src.ExitStdHours, -1)
-        OR ISNULL(tgt.DaysInPosition, -1)                  <> ISNULL(src.DaysInPosition, -1)
-        OR ISNULL(tgt.YearsInPosition, -1)                 <> ISNULL(src.YearsInPosition, -1)
-        OR ISNULL(tgt.AccumulatedYearsInPositions, -1)     <> ISNULL(src.AccumulatedYearsInPositions, -1)
+        -- DaysInPosition / YearsInPosition / AccumulatedYearsInPositions excluded —
+        -- continuously-computed to AsOfDate while ExitDate IS NULL (active position);
+        -- change daily for every active entry and would produce 100% false UPDATEs.
         OR ISNULL(tgt.AgeAtEntry, -1)                      <> ISNULL(src.AgeAtEntry, -1)
         OR ISNULL(tgt.AgeAtExit, -1)                       <> ISNULL(src.AgeAtExit, -1)
         OR ISNULL(tgt.ClassificationGroupAtEntry, '')      <> ISNULL(src.ClassificationGroupAtEntry, '')

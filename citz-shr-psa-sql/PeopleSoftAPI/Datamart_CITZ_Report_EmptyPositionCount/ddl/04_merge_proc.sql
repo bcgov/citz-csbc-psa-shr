@@ -124,7 +124,8 @@ BEGIN
             OR ISNULL(tgt.RegOrTempDescr,            '')          <> ISNULL(src.RegOrTempDescr,            '')
             OR ISNULL(tgt.ReportsTo,                 '')          <> ISNULL(src.ReportsTo,                 '')
             OR ISNULL(tgt.Supervisor,                '')          <> ISNULL(src.Supervisor,                '')
-            OR ISNULL(tgt.YearsEmpty,                -1)          <> ISNULL(src.YearsEmpty,                -1)
+            -- YearsEmpty excluded — continuously-computed from EmptyEffDt + AsOfDate;
+            -- changes daily by ~1/365.25 for every empty position and would produce 100% false UPDATEs.
         )
         THEN UPDATE SET
             BaseIncumbents              = src.BaseIncumbents,
@@ -246,8 +247,8 @@ BEGIN
                 COALESCE(deleted.RegDistrictDesc,               ''),
                 COALESCE(deleted.RegOrTempDescr,                ''),
                 COALESCE(deleted.ReportsTo,                     ''),
-                COALESCE(deleted.Supervisor,                    ''),
-                COALESCE(CONVERT(NVARCHAR(30), deleted.YearsEmpty), '')
+                COALESCE(deleted.Supervisor,                    '')
+                -- YearsEmpty excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
             ) AS NVARCHAR(MAX))) AS OldRowHash,
 
             HASHBYTES('SHA2_256', CAST(CONCAT_WS('|',
@@ -287,8 +288,8 @@ BEGIN
                 COALESCE(inserted.RegDistrictDesc,              ''),
                 COALESCE(inserted.RegOrTempDescr,               ''),
                 COALESCE(inserted.ReportsTo,                    ''),
-                COALESCE(inserted.Supervisor,                   ''),
-                COALESCE(CONVERT(NVARCHAR(30), inserted.YearsEmpty), '')
+                COALESCE(inserted.Supervisor,                   '')
+                -- YearsEmpty excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
             ) AS NVARCHAR(MAX))) AS NewRowHash,
 
             CAST(deleted.IsActive  AS NVARCHAR(255))                       AS OldIsActive,
