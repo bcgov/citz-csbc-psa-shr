@@ -150,9 +150,9 @@ BEGIN
                 -- Compute row hash across all 136 data columns
                 HASHBYTES('SHA2_256', CAST(CONCAT_WS('|',
                     COALESCE(CompChange,                        ''),
-                    COALESCE(CAST(EstimatedYrsOfService   AS NVARCHAR(20)), ''),
-                    COALESCE(CAST(EstimatedYearsOfService  AS NVARCHAR(20)), ''),
-                    COALESCE(EstimatedYearsOfServiceStr,        ''),
+                    -- EstimatedYrsOfService / EstimatedYearsOfService / EstimatedYearsOfServiceStr
+                    -- excluded — continuously-computed from FirstDateOfService + AsOfDate;
+                    -- change daily for every active row and would produce ~100% false UPDATEs.
                     COALESCE(CONVERT(NVARCHAR(10), FirstDateOfService,  23), ''),
                     COALESCE(CAST(FiscalYear               AS NVARCHAR(10)), ''),
                     COALESCE(CONVERT(NVARCHAR(10), LeaveServiceDt,      23), ''),
@@ -188,10 +188,8 @@ BEGIN
                     COALESCE(NewEmplStatusDescr,                ''),
                     COALESCE(NewEndOfDayHrStatus,               ''),
                     COALESCE(NewEndOfDayPerOrg,                 ''),
-                    COALESCE(CAST(NewEstimatedYearsInOrg  AS NVARCHAR(10)), ''),
-                    COALESCE(NewEstimatedYearsInOrgStr,         ''),
-                    COALESCE(CAST(NewEstimatedYearsInPos  AS NVARCHAR(10)), ''),
-                    COALESCE(NewEstimatedYearsInPosStr,         ''),
+                    -- NewEstimatedYearsInOrg / *Str / NewEstimatedYearsInPos / *Str excluded —
+                    -- continuously-computed from NewFirstDateInOrg/Position + AsOfDate.
                     COALESCE(CONVERT(NVARCHAR(10), NewFirstDateInOrg,    23), ''),
                     COALESCE(CONVERT(NVARCHAR(10), NewFirstDateInPosition,23), ''),
                     COALESCE(NewGrade,                          ''),
@@ -247,10 +245,8 @@ BEGIN
                     COALESCE(PriorEmplStatusDescr,              ''),
                     COALESCE(PriorEndOfDayHrStatus,             ''),
                     COALESCE(PriorEndOfDayPerOrg,               ''),
-                    COALESCE(CAST(PriorEstimatedYearsInOrg  AS NVARCHAR(10)), ''),
-                    COALESCE(PriorEstimatedYearsInOrgStr,       ''),
-                    COALESCE(CAST(PriorEstimatedYearsInPos  AS NVARCHAR(10)), ''),
-                    COALESCE(PriorEstimatedYearsInPosStr,       ''),
+                    -- PriorEstimatedYearsInOrg / *Str / PriorEstimatedYearsInPos / *Str excluded —
+                    -- continuously-computed from PriorFirstDateInOrg/Position + AsOfDate.
                     COALESCE(CONVERT(NVARCHAR(10), PriorFirstDateInOrg,   23), ''),
                     COALESCE(CONVERT(NVARCHAR(10), PriorFirstDateInPosition, 23), ''),
                     COALESCE(CAST(PriorFiscalYear          AS NVARCHAR(10)), ''),

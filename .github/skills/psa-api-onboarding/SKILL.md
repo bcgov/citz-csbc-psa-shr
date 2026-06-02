@@ -341,9 +341,24 @@ WHEN MATCHED and HASHBYTES; kept in UPDATE SET and OUTPUT):
 | TIP | `DaysInPosition` | `INT` | `AsOfDate − FirstDateInPosition` (active rows) |
 | TIP | `YearsInPosition` | `DECIMAL(10,4)` | `DaysInPosition / 365.25` (active rows) |
 | TIP | `AccumulatedYearsInPositions` | `DECIMAL(10,4)` | includes current active position |
+| HEM | `EstimatedYrsOfService` | `DECIMAL` | `AsOfDate − FirstDateOfService` |
+| HEM | `EstimatedYearsOfService` | `DECIMAL` | same |
+| HEM | `EstimatedYearsOfServiceStr` | string | string form of above |
+| HEM | `NewEstimatedYearsInOrg` (+`Str`) | `DECIMAL` / string | `AsOfDate − NewFirstDateInOrg` |
+| HEM | `NewEstimatedYearsInPos` (+`Str`) | `DECIMAL` / string | `AsOfDate − NewFirstDateInPosition` |
+| HEM | `PriorEstimatedYearsInOrg` (+`Str`) | `DECIMAL` / string | `AsOfDate − PriorFirstDateInOrg` |
+| HEM | `PriorEstimatedYearsInPos` (+`Str`) | `DECIMAL` / string | `AsOfDate − PriorFirstDateInPosition` |
 
-Safe (snapshotted to historical date, NOT continuously computed):
-`TIP.AgeAtEntry`, `TIP.AgeAtExit`, `HEM.Estimated*` (all event-snapshot to `EffDt`).
+HEM evidence: run on 2026-06-02 produced 7935 UPDATEs / 10556 active rows (~75%).
+After excluding the 11 `Estimated*` columns from the `_RowHash` CTE, only true
+data changes trigger UPDATEs. The 11 columns are still propagated to the target
+via `UPDATE SET` / `INSERT` so reported values stay current.
+
+Initial belief that `HEM.Estimated*` was snapshotted to `EffDt` was WRONG \u2014
+the API recomputes against the current `AsOfDate` on every run.
+
+Safe (truly snapshotted to a historical date, NOT continuously computed):
+`TIP.AgeAtEntry`, `TIP.AgeAtExit`.
 
 **Prevention for APIs 7+:**
 - Before writing WHEN MATCHED, classify every non-STRING column:
