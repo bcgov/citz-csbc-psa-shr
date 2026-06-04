@@ -36,18 +36,61 @@ library(odbc)
 library(dplyr)
 library(tibble)
 
-# --- Load env config based on PSA_API_ENV (TEST or PROD, default PROD) -------
+# --- Robust environment loading (fixed) --------------------------------------
+
+args <- commandArgs(trailingOnly = FALSE)
+script_path <- sub("--file=", "", args[grep("--file=", args)])
+
+if (length(script_path) > 0) {
+  script_dir <- dirname(normalizePath(script_path))
+} else {
+  script_dir <- getwd()
+}
+
+# Project root = parent directory
+project_root <- dirname(script_dir)
+
+setwd(project_root)
+
+cat("Working directory:", getwd(), "\n")
+cat("Script directory:", script_dir, "\n")
+cat("Project root:", project_root, "\n")
 
 api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
+
 env_file <- switch(api_env,
-  "TEST" = ".Renviron.test",
-  "PROD" = ".Renviron.prod",
-  stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
+                   "TEST" = file.path(project_root, ".Renviron.test"),
+                   "PROD" = file.path(project_root, ".Renviron.prod"),
+                   stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
 )
+
 if (!file.exists(env_file)) {
   stop("Env file not found: ", env_file)
 }
+
 readRenviron(env_file)
+
+cat("Loaded env file:", env_file, "\n")
+
+
+required_vars <- c(
+  "PSA_API_BASE_URL",
+  "PSA_API_USERNAME",
+  "PSA_API_PROD_PASSWORD",
+  "PSA_PROXY_HOST",
+  "PSA_PROXY_PORT",
+  "PSA_SQL_SERVER",
+  "PSA_SQL_DATABASE"
+)
+
+missing_vars <- required_vars[Sys.getenv(required_vars) == ""]
+
+if (length(missing_vars) > 0) {
+  stop("Missing required environment variables: ", paste(missing_vars, collapse = ", "))
+}
+
+cat("Environment variables loaded successfully\n")
+
 
 # --- Configuration (from .Renviron) ------------------------------------------
 
