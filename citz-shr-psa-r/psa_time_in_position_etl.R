@@ -80,7 +80,9 @@ required_vars <- c(
   "PSA_PROXY_HOST",
   "PSA_PROXY_PORT",
   "PSA_SQL_SERVER",
-  "PSA_SQL_DATABASE"
+  "PSA_SQL_DATABASE",
+  "PSA_SQL_USERNAME",
+  "PSA_SQL_PASSWORD"
 )
 
 missing_vars <- required_vars[Sys.getenv(required_vars) == ""]
@@ -103,6 +105,8 @@ proxy_port   <- as.integer(Sys.getenv("PSA_PROXY_PORT"))
 # Credentials (from system env vars, NOT .Renviron)
 psa_user <- Sys.getenv("PSA_API_USERNAME")
 psa_pass <- Sys.getenv("PSA_API_PROD_PASSWORD")
+sql_user <- Sys.getenv("PSA_SQL_USERNAME")
+sql_pass <- Sys.getenv("PSA_SQL_PASSWORD")
 
 api_name <- "Datamart_CITZ_Report_TimeInPositionEmployee"
 
@@ -124,7 +128,9 @@ config_vars <- c(
 
 credential_vars <- c(
   "PSA_API_USERNAME",
-  "PSA_API_PROD_PASSWORD"
+  "PSA_API_PROD_PASSWORD",
+  "PSA_SQL_USERNAME",
+  "PSA_SQL_PASSWORD"
 )
 
 missing_config <- config_vars[Sys.getenv(config_vars) == ""]
@@ -433,7 +439,9 @@ con <- dbConnect(
   Driver                 = "ODBC Driver 17 for SQL Server",
   Server                 = sql_server,
   Database               = sql_database,
-  Trusted_Connection     = "Yes",
+  UID                    = sql_user,
+  PWD                    = sql_pass,
+  Trusted_Connection     = "No",
   Encrypt                = "Yes",
   TrustServerCertificate = "Yes"
 )
