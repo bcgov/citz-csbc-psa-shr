@@ -32,9 +32,9 @@ updating this file:
 | Concern | Required choice |
 |---|---|
 | Libraries | `httr2`, `jsonlite`, `DBI`, `odbc`, `dplyr`, `tibble` (NOT `purrr`) |
-| Env loading | `readRenviron(switch(PSA_API_ENV, "TEST"=".Renviron.test", "PROD"=".Renviron.prod"))`, default `PROD` |
+| Env loading | Task Scheduler safe bootstrap (see below) -- resolve `project_root` via `commandArgs()`, `setwd(project_root)`, load `.Renviron.<env>` via absolute path |
 | Config env vars | `PSA_API_BASE_URL`, `PSA_SQL_SERVER`, `PSA_SQL_DATABASE`, `PSA_PROXY_HOST`, `PSA_PROXY_PORT` |
-| Credential env vars | `PSA_API_USERNAME`, `PSA_API_PROD_PASSWORD` (system env, NOT `.Renviron`) |
+| Credential env vars | `PSA_API_USERNAME`, `PSA_API_PROD_PASSWORD`, `PSA_SQL_USERNAME`, `PSA_SQL_PASSWORD` -- SYSTEM env vars only, NEVER in `.Renviron.*` |
 | Validation | `config_vars` + `credential_vars` checked, `stop()` on missing |
 | HTTP client | `httr2` only (NOT `httr`) |
 | Auth | `req_auth_basic(psa_user, psa_pass)` |
@@ -44,12 +44,85 @@ updating this file:
 | Row binding | `bind_rows()` over `lapply(rows, normalize_row)` (NOT `purrr::map_dfr`) |
 | Empty object `{}` | `normalize_cell()` converts to `NA` |
 | DB driver | `ODBC Driver 17 for SQL Server` |
-| DB connect args | `Trusted_Connection="Yes"`, `Encrypt="Yes"`, `TrustServerCertificate="Yes"` |
+| DB auth | SQL auth required: `UID=sql_user, PWD=sql_pass, Trusted_Connection="No"`. NEVER `Trusted_Connection="Yes"` (fails under Task Scheduler with NT AUTHORITY\\ANONYMOUS LOGON). |
+| DB connect args | `Encrypt="Yes"`, `TrustServerCertificate="Yes"` |
 | DB connect placement | AFTER data prep + dedup, BEFORE staging load |
 | Rename idiom | `dplyr::rename(any_of(json_to_sql))` (NEVER bare `rename()`) |
 | Banners | `cat()` start banner + end banner with row counts |
 | License | Apache 2.0 header at top |
 | Copyright year | Current year |
+
+## Task Scheduler Safe Bootstrap (CRITICAL)
+
+Every ETL script MUST start with the bootstrap below BEFORE any other code
+that reads files, env vars, or opens connections. This is the only way the
+same script runs identically under Task Scheduler (cwd = `system32`) and
+under RStudio (cwd = project root).
+
+```r
+# --- Robust environment loading (Task Scheduler safe) ----------------------
+args <- commandArgs(trailingOnly = FALSE)
+script_path <- sub("--file=", "", args[grep("--file=", args)])
+
+if (length(script_path) > 0) {
+  script_dir <- dirname(normalizePath(script_path))
+} else {
+  script_dir <- getwd()
+}
+
+project_root <- dirname(script_dir)   # parent of citz-shr-psa-r/
+setwd(project_root)
+
+api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
+env_file <- switch(api_env,
+  "TEST" = file.path(project_root, ".Renviron.test"),
+  "PROD" = file.path(project_root, ".Renviron.prod"),
+  stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
+)
+if (!file.exists(env_file)) stop("Env file not found: ", env_file)
+readRenviron(env_file)
+```
+
+Hard rules:
+- Resolve project root from `commandArgs()`, NEVER from `getwd()` alone.
+- `setwd(project_root)` BEFORE any relative path.
+- Load `.Renviron.<env>` via absolute path (`file.path(project_root, ...)`).
+- `.Renviron.*` is for non-sensitive config ONLY. All passwords/usernames
+  come from SYSTEM env vars (`PSA_API_USERNAME`, `PSA_API_PROD_PASSWORD`,
+  `PSA_SQL_USERNAME`, `PSA_SQL_PASSWORD`).
+
+## SQL Server Connection (CRITICAL)
+
+Task Scheduler runs non-interactively without Kerberos delegation, so
+`Trusted_Connection = "Yes"` fails with
+`Login failed for user 'NT AUTHORITY\ANONYMOUS LOGON'`. Always use SQL auth:
+
+```r
+con <- dbConnect(
+  odbc(),
+  Driver                 = "ODBC Driver 17 for SQL Server",
+  Server                 = sql_server,
+  Database               = sql_database,
+  UID                    = sql_user,           # from PSA_SQL_USERNAME
+  PWD                    = sql_pass,           # from PSA_SQL_PASSWORD
+  Trusted_Connection     = "No",
+  Encrypt                = "Yes",
+  TrustServerCertificate = "Yes"
+)
+```
+
+## CMD Wrapper (Task Scheduler entry point)
+
+Every scheduled ETL must be launched via a wrapper under
+[citz-shr-psa-cmd/](../../citz-shr-psa-cmd/). The wrapper:
+- Uses absolute paths for `Rscript.exe` and the `.R` script.
+- Calls `Rscript.exe --vanilla` (ignore user `.Rprofile`/`.Renviron`).
+- Writes stdout + stderr to `E:\Projects\citz-shr-psa\logs\<script>.log`.
+- Records `%ERRORLEVEL%` and exits with it.
+- Does NOT rely on the Task Scheduler "Start in" field.
+
+See [run_tip_etl.cmd](../../citz-shr-psa-cmd/run_tip_etl.cmd) as the
+canonical template; copy and change only `LOGFILE` and the `.R` script name.
 
 ## JSON Field Renaming
 

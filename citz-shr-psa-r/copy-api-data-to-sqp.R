@@ -38,29 +38,50 @@ library(odbc)
 library(dplyr)
 library(tibble)
 
-# --- Load environment config file --------------------------------------------
-# Determines which .Renviron file to load based on PSA_API_ENV.
-# PSA_API_ENV can be set as a system env var, or defaults to PROD.
-# Credentials (PSA_API_USERNAME, PSA_API_PROD_PASSWORD) remain in
-# system environment variables and are NOT stored in .Renviron files.
+# --- Robust environment loading (Task Scheduler safe) ------------------------
+# Task Scheduler launches Rscript.exe with an arbitrary working directory
+# (typically system32), NOT the project root. RStudio masks this because it
+# always launches with the project as the working directory. To behave
+# identically in both contexts, this script:
+#   1. Resolves project root from its own file path via commandArgs().
+#   2. setwd()'s to project root before any relative path is used.
+#   3. Loads .Renviron.<env> from an absolute path under project root.
+#
+# Secrets (PSA_API_*, PSA_SQL_USERNAME/PASSWORD) MUST come from SYSTEM or
+# USER environment variables — they are never stored in .Renviron.* files.
+
+args <- commandArgs(trailingOnly = FALSE)
+script_path <- sub("--file=", "", args[grep("--file=", args)])
+
+if (length(script_path) > 0) {
+  script_dir <- dirname(normalizePath(script_path))
+} else {
+  script_dir <- getwd()
+}
+
+# Project root = parent of the citz-shr-psa-r/ folder.
+project_root <- dirname(script_dir)
+setwd(project_root)
+
+cat("Working directory:", getwd(), "\n")
+cat("Script directory:", script_dir, "\n")
+cat("Project root:", project_root, "\n")
 
 api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
 
-env_file <- switch(
-  api_env,
-  "TEST" = ".Renviron.test",
-  "PROD" = ".Renviron.prod",
-  stop(paste("Invalid PSA_API_ENV value:", api_env, "- must be TEST or PROD"))
+env_file <- switch(api_env,
+  "TEST" = file.path(project_root, ".Renviron.test"),
+  "PROD" = file.path(project_root, ".Renviron.prod"),
+  stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
 )
 
 if (!file.exists(env_file)) {
-  stop(paste(
-    "Environment config file not found:", env_file,
-    "\nCopy .Renviron.example to", env_file, "and fill in values."
-  ))
+  stop("Env file not found: ", env_file,
+       "\nCopy .Renviron.example to that path and fill in values.")
 }
 
 readRenviron(env_file)
+cat("Loaded env file:", env_file, "\n")
 
 # --- Configuration -----------------------------------------------------------
 
@@ -72,8 +93,11 @@ proxy_host   <- Sys.getenv("PSA_PROXY_HOST")
 proxy_port   <- as.integer(Sys.getenv("PSA_PROXY_PORT"))
 
 # From system environment variables (sensitive credentials)
+# NEVER stored in .Renviron.* — must be set as SYSTEM/USER env vars on the host.
 psa_user <- Sys.getenv("PSA_API_USERNAME")
 psa_pass <- Sys.getenv("PSA_API_PROD_PASSWORD")
+sql_user <- Sys.getenv("PSA_SQL_USERNAME")
+sql_pass <- Sys.getenv("PSA_SQL_PASSWORD")
 
 # API name (not sensitive - this is the dataset identifier)
 api_name <- "Datamart_CITZ_Report_vw_Dept_Org_Levels" 
@@ -98,7 +122,9 @@ config_vars <- c(
 # Credentials from system environment variables
 credential_vars <- c(
   "PSA_API_USERNAME",
-  "PSA_API_PROD_PASSWORD"
+  "PSA_API_PROD_PASSWORD",
+  "PSA_SQL_USERNAME",
+  "PSA_SQL_PASSWORD"
 )
 
 missing_config <- config_vars[Sys.getenv(config_vars) == ""]
@@ -229,13 +255,18 @@ df <- df |>
   )
 
 # --- Load to SQL Server staging table ----------------------------------------
+# SQL Authentication is REQUIRED under Task Scheduler.
+# Trusted_Connection = "Yes" causes "Login failed for user 'NT AUTHORITY\\ANONYMOUS LOGON'"
+# when the task runs non-interactively (no Kerberos delegation).
 
 con <- dbConnect(
   odbc(),
   Driver               = "ODBC Driver 17 for SQL Server",
   Server               = sql_server,
   Database             = sql_database,
-  Trusted_Connection   = "Yes",
+  UID                  = sql_user,
+  PWD                  = sql_pass,
+  Trusted_Connection   = "No",
   Encrypt              = "Yes",
   TrustServerCertificate = "Yes"
 )

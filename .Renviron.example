@@ -1,6 +1,26 @@
-# PeopleSoft API Configuration
-# Copy this file to .Renviron.prod or .Renviron.test
-# and fill in actual values. NEVER commit real values.
+# PeopleSoft API Configuration -- non-sensitive only
+#
+# Copy this file to .Renviron.prod or .Renviron.test and fill in actual values.
+# NEVER commit real values. Both .Renviron.prod and .Renviron.test are gitignored.
+#
+# ----------------------------------------------------------------------------
+# SECRETS POLICY (CRITICAL):
+#
+# The following credentials MUST be set as SYSTEM (or USER) environment
+# variables on the Windows host running the scheduled task -- NEVER in any
+# .Renviron.* file in this repo:
+#
+#   PSA_API_USERNAME       PeopleSoft API username
+#   PSA_API_PROD_PASSWORD  PeopleSoft API password
+#   PSA_SQL_USERNAME       SQL Server login (SQL auth)
+#   PSA_SQL_PASSWORD       SQL Server password (SQL auth)
+#
+# Rationale:
+#   - .Renviron.* may be edited/copied by ops staff. Secrets at the OS level
+#     are protected by Windows ACLs and never appear in repo history.
+#   - SQL auth is required because Task Scheduler runs non-interactively;
+#     Trusted_Connection = "Yes" fails with NT AUTHORITY\ANONYMOUS LOGON.
+# ----------------------------------------------------------------------------
 
 PSA_API_BASE_URL=https://<server-name>/apiserver/api.rsc/
 PSA_SQL_SERVER=<sql-server-hostname>
