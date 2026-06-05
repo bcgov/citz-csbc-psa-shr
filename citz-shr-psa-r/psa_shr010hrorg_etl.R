@@ -52,95 +52,27 @@ library(odbc)
 library(dplyr)
 library(tibble)
 
-# --- Robust environment loading (Task Scheduler safe) ------------------------
-# Task Scheduler launches Rscript.exe with an arbitrary working directory
-# (typically system32), NOT the project root. RStudio masks this because it
-# always launches with the project as the working directory. To behave
-# identically in both contexts, this script:
-#   1. Resolves project root from its own file path via commandArgs().
-#   2. setwd()'s to project root before any relative path is used.
-#   3. Loads .Renviron.<env> from an absolute path under project root.
-#
-# Secrets (PSA_API_*, PSA_SQL_USERNAME/PASSWORD) MUST come from SYSTEM or
-# USER environment variables — they are never stored in .Renviron.* files.
-
+# Resolve script location (needed before sourcing bootstrap) -----------------
+# bootstrap_env.R and db_connect.R live in the same directory (citz-shr-psa-r/).
+# script_dir must be set before sourcing bootstrap_env.R.
 args <- commandArgs(trailingOnly = FALSE)
 script_path <- sub("--file=", "", args[grep("--file=", args)])
-
 if (length(script_path) > 0) {
   script_dir <- dirname(normalizePath(script_path))
 } else {
   script_dir <- getwd()
 }
 
-# Project root = parent of the citz-shr-psa-r/ folder.
-project_root <- dirname(script_dir)
-setwd(project_root)
+source(file.path(script_dir, "bootstrap_env.R"))
+source(file.path(script_dir, "db_connect.R"))
 
-cat("Working directory:", getwd(), "\n")
-cat("Script directory:", script_dir, "\n")
-cat("Project root:", project_root, "\n")
-
-api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
-
-env_file <- switch(api_env,
-  "TEST" = file.path(project_root, ".Renviron.test"),
-  "PROD" = file.path(project_root, ".Renviron.prod"),
-  stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
-)
-
-if (!file.exists(env_file)) {
-  stop("Env file not found: ", env_file,
-       "\nCopy .Renviron.example to that path and fill in values.")
-}
-
-readRenviron(env_file)
-cat("Loaded env file:", env_file, "\n")
-
-# --- Configuration -----------------------------------------------------------
-
-api_base_url <- Sys.getenv("PSA_API_BASE_URL")
-sql_server   <- Sys.getenv("PSA_SQL_SERVER")
-sql_database <- Sys.getenv("PSA_SQL_DATABASE")
-proxy_host   <- Sys.getenv("PSA_PROXY_HOST")
-proxy_port   <- as.integer(Sys.getenv("PSA_PROXY_PORT"))
-
-psa_user <- Sys.getenv("PSA_API_USERNAME")
-psa_pass <- Sys.getenv("PSA_API_PROD_PASSWORD")
-# SQL credentials — system env vars only, never in .Renviron.*
-sql_user <- Sys.getenv("PSA_SQL_USERNAME")
-sql_pass <- Sys.getenv("PSA_SQL_PASSWORD")
+# --- API and table configuration ---------------------------------------------
 
 api_name      <- "Datamart_CITZ_Report_SHR010HRORG"
 api_url       <- paste0(api_base_url, api_name)
 staging_table <- "dbo.Stg_Peoplesoft_SHR010HRORG"
 target_table  <- "dbo.Peoplesoft_SHR010HRORG"
 dropped_table <- "dbo.Stg_Peoplesoft_SHR010HRORG_Dropped"
-
-# --- Validate required variables ---------------------------------------------
-
-config_vars <- c("PSA_API_BASE_URL", "PSA_SQL_SERVER", "PSA_SQL_DATABASE", "PSA_PROXY_HOST")
-credential_vars <- c("PSA_API_USERNAME", "PSA_API_PROD_PASSWORD",
-                     "PSA_SQL_USERNAME", "PSA_SQL_PASSWORD")
-
-missing_config <- config_vars[Sys.getenv(config_vars) == ""]
-missing_creds  <- credential_vars[Sys.getenv(credential_vars) == ""]
-
-if (length(missing_config) > 0) {
-  stop(paste(
-    "Missing config in", env_file, ":",
-    paste(missing_config, collapse = ", "),
-    "\nSee .Renviron.example for required variables."
-  ))
-}
-
-if (length(missing_creds) > 0) {
-  stop(paste(
-    "Missing credentials in system environment variables:",
-    paste(missing_creds, collapse = ", "),
-    "\nSet these via: Win+R -> sysdm.cpl -> Advanced -> Environment Variables"
-  ))
-}
 
 cat("===================================================\n")
 cat("PSA ETL starting\n")
@@ -442,22 +374,6 @@ if (nrow(dropped_df) > 0) {
 cat("Rows to stage:", nrow(df), "\n")
 
 # --- Connect to SQL Server ---------------------------------------------------
-# SQL Authentication is REQUIRED under Task Scheduler.
-# Trusted_Connection = "Yes" causes "Login failed for user 'NT AUTHORITY\\ANONYMOUS LOGON'"
-# when the task runs non-interactively (no Kerberos delegation). Force SQL
-# auth with explicit UID/PWD sourced from system environment variables.
-
-con <- dbConnect(
-  odbc(),
-  Driver                 = "ODBC Driver 17 for SQL Server",
-  Server                 = sql_server,
-  Database               = sql_database,
-  UID                    = sql_user,
-  PWD                    = sql_pass,
-  Trusted_Connection     = "No",
-  Encrypt                = "Yes",
-  TrustServerCertificate = "Yes"
-)
 
 dbBegin(con)
 

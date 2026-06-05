@@ -32,10 +32,10 @@ updating this file:
 | Concern | Required choice |
 |---|---|
 | Libraries | `httr2`, `jsonlite`, `DBI`, `odbc`, `dplyr`, `tibble` (NOT `purrr`) |
-| Env loading | Task Scheduler safe bootstrap (see below) -- resolve `project_root` via `commandArgs()`, `setwd(project_root)`, load `.Renviron.<env>` via absolute path |
+| Env loading | Source `bootstrap_env.R` (see Reusable Helpers below). Do NOT duplicate bootstrap logic inline. |
 | Config env vars | `PSA_API_BASE_URL`, `PSA_SQL_SERVER`, `PSA_SQL_DATABASE`, `PSA_PROXY_HOST`, `PSA_PROXY_PORT` |
 | Credential env vars | `PSA_API_USERNAME`, `PSA_API_PROD_PASSWORD`, `PSA_SQL_USERNAME`, `PSA_SQL_PASSWORD` -- SYSTEM env vars only, NEVER in `.Renviron.*` |
-| Validation | `config_vars` + `credential_vars` checked, `stop()` on missing |
+| Validation | Handled by `bootstrap_env.R` (config_vars + credential_vars checked, stop() on missing) |
 | HTTP client | `httr2` only (NOT `httr`) |
 | Auth | `req_auth_basic(psa_user, psa_pass)` |
 | Proxy | `req_proxy(proxy_host, as.integer(proxy_port))` |
@@ -44,13 +44,59 @@ updating this file:
 | Row binding | `bind_rows()` over `lapply(rows, normalize_row)` (NOT `purrr::map_dfr`) |
 | Empty object `{}` | `normalize_cell()` converts to `NA` |
 | DB driver | `ODBC Driver 17 for SQL Server` |
-| DB auth | SQL auth required: `UID=sql_user, PWD=sql_pass, Trusted_Connection="No"`. NEVER `Trusted_Connection="Yes"` (fails under Task Scheduler with NT AUTHORITY\\ANONYMOUS LOGON). |
-| DB connect args | `Encrypt="Yes"`, `TrustServerCertificate="Yes"` |
-| DB connect placement | AFTER data prep + dedup, BEFORE staging load |
+| DB auth | Handled by `db_connect.R`. SQL auth required: `Trusted_Connection="No"`. NEVER `Trusted_Connection="Yes"` (fails under Task Scheduler with NT AUTHORITY\\ANONYMOUS LOGON). |
+| DB connect args | `Encrypt="Yes"`, `TrustServerCertificate="Yes"` (in `db_connect.R`) |
+| DB connect placement | Source `db_connect.R` at the top of the script (before API fetch). `con` is available throughout. |
 | Rename idiom | `dplyr::rename(any_of(json_to_sql))` (NEVER bare `rename()`) |
 | Banners | `cat()` start banner + end banner with row counts |
 | License | Apache 2.0 header at top |
 | Copyright year | Current year |
+
+## Reusable Helpers (CRITICAL)
+
+Two shared helpers in `citz-shr-psa-r/` eliminate duplication across all
+ETL scripts:
+
+| File | Purpose |
+|---|---|
+| `bootstrap_env.R` | Resolve project root, load .Renviron, validate vars, set config + credential variables |
+| `db_connect.R` | Open SQL Server connection (SQL auth), validate it, export `con` |
+
+**All new ETL scripts MUST source both helpers. Duplicating bootstrap or
+connection logic inline is PROHIBITED.**
+
+Required pattern at the top of every ETL script:
+
+```r
+# Resolve script location (needed before sourcing bootstrap) -----------------
+args <- commandArgs(trailingOnly = FALSE)
+script_path <- sub("--file=", "", args[grep("--file=", args)])
+if (length(script_path) > 0) {
+  script_dir <- dirname(normalizePath(script_path))
+} else {
+  script_dir <- getwd()
+}
+
+source(file.path(script_dir, "bootstrap_env.R"))
+source(file.path(script_dir, "db_connect.R"))
+
+# --- API and table configuration (per-API, defined HERE not in helpers) ------
+api_name      <- "Datamart_CITZ_Report_<YourApiName>"
+api_url       <- paste0(api_base_url, api_name)
+staging_table <- "dbo.Stg_Peoplesoft_<ShortName>"
+target_table  <- "dbo.Peoplesoft_<ShortName>"   # if applicable
+dropped_table <- "dbo.Stg_Peoplesoft_<ShortName>_Dropped"  # if applicable
+```
+
+Variables available after sourcing `bootstrap_env.R`:
+`project_root`, `api_env`, `env_file`, `api_base_url`, `sql_server`,
+`sql_database`, `proxy_host`, `proxy_port`, `psa_user`, `psa_pass`,
+`sql_user`, `sql_pass`.
+
+Variable available after sourcing `db_connect.R`: `con` (open DBI connection).
+
+Do NOT modify `bootstrap_env.R` or `db_connect.R` to add per-API logic.
+Those files are shared across all ETL scripts.
 
 ## Task Scheduler Safe Bootstrap (CRITICAL)
 

@@ -36,121 +36,28 @@ library(odbc)
 library(dplyr)
 library(tibble)
 
-# --- Robust environment loading (fixed) --------------------------------------
-
+# Resolve script location (needed before sourcing bootstrap) -----------------
+# bootstrap_env.R and db_connect.R live in the same directory (citz-shr-psa-r/).
+# script_dir must be set before sourcing bootstrap_env.R.
 args <- commandArgs(trailingOnly = FALSE)
 script_path <- sub("--file=", "", args[grep("--file=", args)])
-
 if (length(script_path) > 0) {
   script_dir <- dirname(normalizePath(script_path))
 } else {
   script_dir <- getwd()
 }
 
-# Project root = parent directory
-project_root <- dirname(script_dir)
+source(file.path(script_dir, "bootstrap_env.R"))
+source(file.path(script_dir, "db_connect.R"))
 
-setwd(project_root)
-
-cat("Working directory:", getwd(), "\n")
-cat("Script directory:", script_dir, "\n")
-cat("Project root:", project_root, "\n")
-
-api_env <- toupper(Sys.getenv("PSA_API_ENV", unset = "PROD"))
-
-env_file <- switch(api_env,
-                   "TEST" = file.path(project_root, ".Renviron.test"),
-                   "PROD" = file.path(project_root, ".Renviron.prod"),
-                   stop("PSA_API_ENV must be TEST or PROD; got: ", api_env)
-)
-
-if (!file.exists(env_file)) {
-  stop("Env file not found: ", env_file)
-}
-
-readRenviron(env_file)
-
-cat("Loaded env file:", env_file, "\n")
-
-
-required_vars <- c(
-  "PSA_API_BASE_URL",
-  "PSA_API_USERNAME",
-  "PSA_API_PROD_PASSWORD",
-  "PSA_PROXY_HOST",
-  "PSA_PROXY_PORT",
-  "PSA_SQL_SERVER",
-  "PSA_SQL_DATABASE",
-  "PSA_SQL_USERNAME",
-  "PSA_SQL_PASSWORD"
-)
-
-missing_vars <- required_vars[Sys.getenv(required_vars) == ""]
-
-if (length(missing_vars) > 0) {
-  stop("Missing required environment variables: ", paste(missing_vars, collapse = ", "))
-}
-
-cat("Environment variables loaded successfully\n")
-
-
-# --- Configuration (from .Renviron) ------------------------------------------
-
-api_base_url <- Sys.getenv("PSA_API_BASE_URL")
-sql_server   <- Sys.getenv("PSA_SQL_SERVER")
-sql_database <- Sys.getenv("PSA_SQL_DATABASE")
-proxy_host   <- Sys.getenv("PSA_PROXY_HOST")
-proxy_port   <- as.integer(Sys.getenv("PSA_PROXY_PORT"))
-
-# Credentials (from system env vars, NOT .Renviron)
-psa_user <- Sys.getenv("PSA_API_USERNAME")
-psa_pass <- Sys.getenv("PSA_API_PROD_PASSWORD")
-sql_user <- Sys.getenv("PSA_SQL_USERNAME")
-sql_pass <- Sys.getenv("PSA_SQL_PASSWORD")
+# --- API and table configuration ---------------------------------------------
 
 api_name <- "Datamart_CITZ_Report_TimeInPositionEmployee"
 
 # Full API URL (base + API name)
-api_url <- paste0(api_base_url, api_name)
-
-# Table names
+api_url       <- paste0(api_base_url, api_name)
 staging_table <- "dbo.Stg_Peoplesoft_TIP"
 dropped_table <- "dbo.Stg_Peoplesoft_TIP_Dropped"
-
-# --- Validate required variables ---------------------------------------------
-
-config_vars <- c(
-  "PSA_API_BASE_URL",
-  "PSA_SQL_SERVER",
-  "PSA_SQL_DATABASE",
-  "PSA_PROXY_HOST"
-)
-
-credential_vars <- c(
-  "PSA_API_USERNAME",
-  "PSA_API_PROD_PASSWORD",
-  "PSA_SQL_USERNAME",
-  "PSA_SQL_PASSWORD"
-)
-
-missing_config <- config_vars[Sys.getenv(config_vars) == ""]
-missing_creds  <- credential_vars[Sys.getenv(credential_vars) == ""]
-
-if (length(missing_config) > 0) {
-  stop(paste(
-    "Missing config in", env_file, ":",
-    paste(missing_config, collapse = ", "),
-    "\nSee .Renviron.example for required variables."
-  ))
-}
-
-if (length(missing_creds) > 0) {
-  stop(paste(
-    "Missing credentials in system environment variables:",
-    paste(missing_creds, collapse = ", "),
-    "\nSet these via: Win+R -> sysdm.cpl -> Advanced -> Environment Variables"
-  ))
-}
 
 cat("===================================================\n")
 cat("PSA TIP ETL starting\n")
@@ -433,18 +340,6 @@ cat("Dropped rows captured for quality log:", nrow(dropped_df),
     "| DUPLICATE_COMPOSITE_KEY:", nrow(dup_rows), ")\n")
 
 # --- Load to SQL Server staging table ----------------------------------------
-
-con <- dbConnect(
-  odbc(),
-  Driver                 = "ODBC Driver 17 for SQL Server",
-  Server                 = sql_server,
-  Database               = sql_database,
-  UID                    = sql_user,
-  PWD                    = sql_pass,
-  Trusted_Connection     = "No",
-  Encrypt                = "Yes",
-  TrustServerCertificate = "Yes"
-)
 
 dbBegin(con)
 
