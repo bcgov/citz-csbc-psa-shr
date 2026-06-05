@@ -1,13 +1,9 @@
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 CREATE OR ALTER PROCEDURE dbo.usp_Merge_PeopleSoft_SO001HRORG
 (
-      @Force                 BIT = 0
-    , @MinPctOfTarget        DECIMAL(5,2) = 0.80  -- staging must be at least 80% of target
-    , @MaxPctOfTarget        DECIMAL(5,2) = 1.20  -- staging must be at most 120% of target
-    , @MaxSoftDeletePct      DECIMAL(5,2) = 0.10  -- max 10% of target allowed to be soft-deleted per run
+        @Force                 BIT = 0
+      , @MinPctOfTarget        DECIMAL(5,2) = 0.80  -- staging must be at least 80% of target
+      , @MaxPctOfTarget        DECIMAL(5,2) = 1.20  -- staging must be at most 120% of target
+      , @MaxSoftDeletePct      DECIMAL(5,2) = 0.10  -- max 10% of target allowed to be soft-deleted per run
 )
 AS
 BEGIN
@@ -82,6 +78,12 @@ BEGIN
 
         --------------------------------------------------------------------
         -- MERGE (UPSERT) + SOFT DELETE + AUDIT OUTPUT
+        --
+        -- NOTE: LastFilled, LastFilledB, LastFilledBase, and Age are
+        -- EXCLUDED from WHEN MATCHED and HASHBYTES because PeopleSoft
+        -- recomputes them daily (days-since-filled counters / age).
+        -- They are KEPT in UPDATE SET, INSERT, and OUTPUT so values
+        -- stay fresh and are tracked in audit history.
         --------------------------------------------------------------------
         ;MERGE dbo.Peoplesoft_SO001HRORG WITH (HOLDLOCK) AS tgt
         USING dbo.Stg_Peoplesoft_SO001HRORG AS src
@@ -116,9 +118,7 @@ BEGIN
             OR ISNULL(tgt.Vacant,              '') <> ISNULL(src.Vacant,              '')
             OR ISNULL(tgt.TrueVacancy,         '') <> ISNULL(src.TrueVacancy,         '')
             OR ISNULL(tgt.Future,              '') <> ISNULL(src.Future,              '')
-            OR ISNULL(tgt.LastFilled,          '') <> ISNULL(src.LastFilled,          '')
-            OR ISNULL(tgt.LastFilledB,         '') <> ISNULL(src.LastFilledB,         '')
-            OR ISNULL(tgt.LastFilledBase,      '') <> ISNULL(src.LastFilledBase,      '')
+            -- LastFilled, LastFilledB, LastFilledBase REMOVED (daily counter)
             OR ISNULL(tgt.EmplBU,              '') <> ISNULL(src.EmplBU,              '')
             OR ISNULL(tgt.EmplDeptId,          '') <> ISNULL(src.EmplDeptId,          '')
             OR ISNULL(tgt.JobRole,             '') <> ISNULL(src.JobRole,             '')
@@ -134,8 +134,7 @@ BEGIN
             OR ISNULL(tgt.EmplId,              '') <> ISNULL(src.EmplId,              '')
             OR ISNULL(tgt.EmplStatus,          '') <> ISNULL(src.EmplStatus,          '')
             OR ISNULL(tgt.Appt,                '') <> ISNULL(src.Appt,                '')
-            -- Age excluded — continuously-computed from Birthdate + AsOfDate;
-            -- changes on every employee's birthday and would produce false UPDATEs.
+            -- Age REMOVED (recomputed daily)
             OR ISNULL(tgt.PosClassMax,         '') <> ISNULL(src.PosClassMax,         '')
             OR ISNULL(tgt.JobClassMax,         '') <> ISNULL(src.JobClassMax,         '')
             OR ISNULL(tgt.Annual,              '') <> ISNULL(src.Annual,              '')
@@ -194,9 +193,9 @@ BEGIN
             Vacant             = src.Vacant,
             TrueVacancy        = src.TrueVacancy,
             Future             = src.Future,
-            LastFilled         = src.LastFilled,
-            LastFilledB        = src.LastFilledB,
-            LastFilledBase     = src.LastFilledBase,
+            LastFilled         = src.LastFilled,       -- kept in SET (value stays fresh)
+            LastFilledB        = src.LastFilledB,      -- kept in SET (value stays fresh)
+            LastFilledBase     = src.LastFilledBase,    -- kept in SET (value stays fresh)
             EmplBU             = src.EmplBU,
             EmplDeptId         = src.EmplDeptId,
             JobRole            = src.JobRole,
@@ -212,7 +211,7 @@ BEGIN
             EmplId             = src.EmplId,
             EmplStatus         = src.EmplStatus,
             Appt               = src.Appt,
-            Age                = src.Age,
+            Age                = src.Age,              -- kept in SET (value stays fresh)
             PosClassMax        = src.PosClassMax,
             JobClassMax        = src.JobClassMax,
             Annual             = src.Annual,
@@ -310,7 +309,7 @@ BEGIN
             COALESCE(inserted.PosPosition, deleted.PosPosition)           AS PosPosition,
             COALESCE(inserted.EmplId,      deleted.EmplId)                AS EmplId,
 
-            -- Old row hash
+              -- Old row hash (LastFilled, LastFilledB, LastFilledBase, Age REMOVED)
             HASHBYTES('SHA2_256', CONCAT_WS('|',
                 deleted.PosPosition,
                 COALESCE(deleted.Organization,        ''), COALESCE(deleted.Level1,              ''),
@@ -327,8 +326,7 @@ BEGIN
                 COALESCE(deleted.Budgetted,           ''), COALESCE(deleted.Empty,               ''),
                 COALESCE(deleted.Vacant,              ''), COALESCE(deleted.TrueVacancy,         ''),
                 COALESCE(deleted.Future,              ''),
-                COALESCE(deleted.LastFilled,          ''), COALESCE(deleted.LastFilledB,         ''),
-                COALESCE(deleted.LastFilledBase,      ''),
+                -- LastFilled, LastFilledB, LastFilledBase REMOVED
                 COALESCE(deleted.EmplBU,              ''), COALESCE(deleted.EmplDeptId,          ''),
                 COALESCE(deleted.JobRole,             ''), COALESCE(deleted.EmplJobCode,         ''),
                 COALESCE(deleted.EmplClassification,  ''),
@@ -337,7 +335,7 @@ BEGIN
                 COALESCE(deleted.StandardHours,       ''), COALESCE(deleted.Base,                ''),
                 COALESCE(deleted.Name,                ''), COALESCE(deleted.EmplId,              ''),
                 COALESCE(deleted.EmplStatus,          ''), COALESCE(deleted.Appt,                ''),
-                -- Age excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
+                -- Age REMOVED
                 COALESCE(deleted.PosClassMax,         ''), COALESCE(deleted.JobClassMax,         ''),
                 COALESCE(deleted.Annual,              ''), COALESCE(deleted.Abbr,                ''),
                 COALESCE(deleted.AdminPlan,           ''),
@@ -358,7 +356,7 @@ BEGIN
                 COALESCE(CONVERT(NVARCHAR(1), deleted.IsActive), '')
             )) AS OldRowHash,
 
-            -- New row hash
+              -- New row hash (LastFilled, LastFilledB, LastFilledBase, Age REMOVED)
             HASHBYTES('SHA2_256', CONCAT_WS('|',
                 inserted.PosPosition,
                 COALESCE(inserted.Organization,        ''), COALESCE(inserted.Level1,              ''),
@@ -375,8 +373,7 @@ BEGIN
                 COALESCE(inserted.Budgetted,           ''), COALESCE(inserted.Empty,               ''),
                 COALESCE(inserted.Vacant,              ''), COALESCE(inserted.TrueVacancy,         ''),
                 COALESCE(inserted.Future,              ''),
-                COALESCE(inserted.LastFilled,          ''), COALESCE(inserted.LastFilledB,         ''),
-                COALESCE(inserted.LastFilledBase,      ''),
+                -- LastFilled, LastFilledB, LastFilledBase REMOVED
                 COALESCE(inserted.EmplBU,              ''), COALESCE(inserted.EmplDeptId,          ''),
                 COALESCE(inserted.JobRole,             ''), COALESCE(inserted.EmplJobCode,         ''),
                 COALESCE(inserted.EmplClassification,  ''),
@@ -385,7 +382,7 @@ BEGIN
                 COALESCE(inserted.StandardHours,       ''), COALESCE(inserted.Base,                ''),
                 COALESCE(inserted.Name,                ''), COALESCE(inserted.EmplId,              ''),
                 COALESCE(inserted.EmplStatus,          ''), COALESCE(inserted.Appt,                ''),
-                -- Age excluded from hash — continuously-computed; see MERGE WHEN MATCHED note
+                -- Age REMOVED
                 COALESCE(inserted.PosClassMax,         ''), COALESCE(inserted.JobClassMax,         ''),
                 COALESCE(inserted.Annual,              ''), COALESCE(inserted.Abbr,                ''),
                 COALESCE(inserted.AdminPlan,           ''),
@@ -406,164 +403,164 @@ BEGIN
                 COALESCE(CONVERT(NVARCHAR(1), inserted.IsActive), '')
             )) AS NewRowHash,
 
-            CAST(deleted.IsActive  AS NVARCHAR(255)) AS OldIsActive,
-            CAST(inserted.IsActive AS NVARCHAR(255)) AS NewIsActive,
+              deleted.IsActive  AS OldIsActive,
+            inserted.IsActive AS NewIsActive,
 
-            -- Old column values (all CAST to NVARCHAR(255))
-            CAST(deleted.Organization        AS NVARCHAR(255)) AS OldOrganization,
-            CAST(deleted.Level1              AS NVARCHAR(255)) AS OldLevel1,
-            CAST(deleted.Level2              AS NVARCHAR(255)) AS OldLevel2,
-            CAST(deleted.Level3              AS NVARCHAR(255)) AS OldLevel3,
-            CAST(deleted.PosBusinessUnit     AS NVARCHAR(255)) AS OldPosBusinessUnit,
-            CAST(deleted.PosBU               AS NVARCHAR(255)) AS OldPosBU,
-            CAST(deleted.PosDepartment       AS NVARCHAR(255)) AS OldPosDepartment,
-            CAST(deleted.PosDeptId           AS NVARCHAR(255)) AS OldPosDeptId,
-            CAST(deleted.Title               AS NVARCHAR(255)) AS OldTitle,
-            CAST(deleted.PosRole             AS NVARCHAR(255)) AS OldPosRole,
-            CAST(deleted.PosJobCode          AS NVARCHAR(255)) AS OldPosJobCode,
-            CAST(deleted.PosClassification   AS NVARCHAR(255)) AS OldPosClassification,
-            CAST(deleted.SupervisorPos       AS NVARCHAR(255)) AS OldSupervisorPos,
-            CAST(deleted.SupervisorName      AS NVARCHAR(255)) AS OldSupervisorName,
-            CAST(deleted.Direct              AS NVARCHAR(255)) AS OldDirect,
-            CAST(deleted.Indirect            AS NVARCHAR(255)) AS OldIndirect,
-            CAST(deleted.City                AS NVARCHAR(255)) AS OldCity,
-            CAST(deleted.Status              AS NVARCHAR(255)) AS OldStatus,
-            CAST(deleted.RT                  AS NVARCHAR(255)) AS OldRT,
-            CAST(deleted.FP                  AS NVARCHAR(255)) AS OldFP,
-            CAST(deleted.Budgetted           AS NVARCHAR(255)) AS OldBudgetted,
-            CAST(deleted.Empty               AS NVARCHAR(255)) AS OldEmpty,
-            CAST(deleted.Vacant              AS NVARCHAR(255)) AS OldVacant,
-            CAST(deleted.TrueVacancy         AS NVARCHAR(255)) AS OldTrueVacancy,
-            CAST(deleted.Future              AS NVARCHAR(255)) AS OldFuture,
-            CAST(deleted.LastFilled          AS NVARCHAR(255)) AS OldLastFilled,
-            CAST(deleted.LastFilledB         AS NVARCHAR(255)) AS OldLastFilledB,
-            CAST(deleted.LastFilledBase      AS NVARCHAR(255)) AS OldLastFilledBase,
-            CAST(deleted.EmplBU              AS NVARCHAR(255)) AS OldEmplBU,
-            CAST(deleted.EmplDeptId          AS NVARCHAR(255)) AS OldEmplDeptId,
-            CAST(deleted.JobRole             AS NVARCHAR(255)) AS OldJobRole,
-            CAST(deleted.EmplJobCode         AS NVARCHAR(255)) AS OldEmplJobCode,
-            CAST(deleted.EmplClassification  AS NVARCHAR(255)) AS OldEmplClassification,
-            CAST(deleted.Grade               AS NVARCHAR(255)) AS OldGrade,
-            CAST(deleted.Step                AS NVARCHAR(255)) AS OldStep,
-            CAST(deleted.SalaryType          AS NVARCHAR(255)) AS OldSalaryType,
-            CAST(deleted.Type                AS NVARCHAR(255)) AS OldType,
-            CAST(deleted.StandardHours       AS NVARCHAR(255)) AS OldStandardHours,
-            CAST(deleted.Base                AS NVARCHAR(255)) AS OldBase,
-            CAST(deleted.Name                AS NVARCHAR(255)) AS OldName,
-            CAST(deleted.EmplId              AS NVARCHAR(255)) AS OldEmplId,
-            CAST(deleted.EmplStatus          AS NVARCHAR(255)) AS OldEmplStatus,
-            CAST(deleted.Appt                AS NVARCHAR(255)) AS OldAppt,
-            CAST(deleted.Age                 AS NVARCHAR(255)) AS OldAge,
-            CAST(deleted.PosClassMax         AS NVARCHAR(255)) AS OldPosClassMax,
-            CAST(deleted.JobClassMax         AS NVARCHAR(255)) AS OldJobClassMax,
-            CAST(deleted.Annual              AS NVARCHAR(255)) AS OldAnnual,
-            CAST(deleted.Abbr                AS NVARCHAR(255)) AS OldAbbr,
-            CAST(deleted.AdminPlan           AS NVARCHAR(255)) AS OldAdminPlan,
-            CAST(deleted.AMA                 AS NVARCHAR(255)) AS OldAMA,
-            CAST(deleted.AMALimit            AS NVARCHAR(255)) AS OldAMALimit,
-            CAST(deleted.CAD                 AS NVARCHAR(255)) AS OldCAD,
-            CAST(deleted.CADLimit            AS NVARCHAR(255)) AS OldCADLimit,
-            CAST(deleted.SPP                 AS NVARCHAR(255)) AS OldSPP,
-            CAST(deleted.SPPLimit            AS NVARCHAR(255)) AS OldSPPLimit,
-            CAST(deleted.TAJ                 AS NVARCHAR(255)) AS OldTAJ,
-            CAST(deleted.TAJLimit            AS NVARCHAR(255)) AS OldTAJLimit,
-            CAST(deleted.FutureTermDate      AS NVARCHAR(255)) AS OldFutureTermDate,
-            CAST(deleted.FutureTermReason    AS NVARCHAR(255)) AS OldFutureTermReason,
-            CAST(deleted.TAStatus            AS NVARCHAR(255)) AS OldTAStatus,
-            CAST(deleted.TAStartDate         AS NVARCHAR(255)) AS OldTAStartDate,
-            CAST(deleted.TAReturnDate        AS NVARCHAR(255)) AS OldTAReturnDate,
-            CAST(deleted.TAReturnTo          AS NVARCHAR(255)) AS OldTAReturnTo,
-            CAST(deleted.TAReturnBU          AS NVARCHAR(255)) AS OldTAReturnBU,
-            CAST(deleted.TAReturnDeptId      AS NVARCHAR(255)) AS OldTAReturnDeptId,
-            CAST(deleted.TAReturnJobCode     AS NVARCHAR(255)) AS OldTAReturnJobCode,
-            CAST(deleted.TAReturnGrade       AS NVARCHAR(255)) AS OldTAReturnGrade,
-            CAST(deleted.TAReturnPosition    AS NVARCHAR(255)) AS OldTAReturnPosition,
-            CAST(deleted.TAReturnSupervisor  AS NVARCHAR(255)) AS OldTAReturnSupervisor,
-            CAST(deleted.TAReturnAbbr        AS NVARCHAR(255)) AS OldTAReturnAbbr,
-            CAST(deleted.LeaveReason         AS NVARCHAR(255)) AS OldLeaveReason,
-            CAST(deleted.LeaveStart          AS NVARCHAR(255)) AS OldLeaveStart,
-            CAST(deleted.LeaveReturn         AS NVARCHAR(255)) AS OldLeaveReturn,
-            CAST(deleted.Q                   AS NVARCHAR(255)) AS OldQ,
-            CAST(deleted.MaildropCity        AS NVARCHAR(255)) AS OldMaildropCity,
+              -- Old column values (ALL columns kept for audit trail)
+            deleted.Organization        AS OldOrganization,
+            deleted.Level1              AS OldLevel1,
+            deleted.Level2              AS OldLevel2,
+            deleted.Level3              AS OldLevel3,
+            deleted.PosBusinessUnit     AS OldPosBusinessUnit,
+            deleted.PosBU               AS OldPosBU,
+            deleted.PosDepartment       AS OldPosDepartment,
+            deleted.PosDeptId           AS OldPosDeptId,
+            deleted.Title               AS OldTitle,
+            deleted.PosRole             AS OldPosRole,
+            deleted.PosJobCode          AS OldPosJobCode,
+            deleted.PosClassification   AS OldPosClassification,
+            deleted.SupervisorPos       AS OldSupervisorPos,
+            deleted.SupervisorName      AS OldSupervisorName,
+            deleted.Direct              AS OldDirect,
+            deleted.Indirect            AS OldIndirect,
+            deleted.City                AS OldCity,
+            deleted.Status              AS OldStatus,
+            deleted.RT                  AS OldRT,
+            deleted.FP                  AS OldFP,
+            deleted.Budgetted           AS OldBudgetted,
+            deleted.Empty               AS OldEmpty,
+            deleted.Vacant              AS OldVacant,
+            deleted.TrueVacancy         AS OldTrueVacancy,
+            deleted.Future              AS OldFuture,
+            deleted.LastFilled          AS OldLastFilled,
+            deleted.LastFilledB         AS OldLastFilledB,
+            deleted.LastFilledBase      AS OldLastFilledBase,
+            deleted.EmplBU              AS OldEmplBU,
+            deleted.EmplDeptId          AS OldEmplDeptId,
+            deleted.JobRole             AS OldJobRole,
+            deleted.EmplJobCode         AS OldEmplJobCode,
+            deleted.EmplClassification  AS OldEmplClassification,
+            deleted.Grade               AS OldGrade,
+            deleted.Step                AS OldStep,
+            deleted.SalaryType          AS OldSalaryType,
+            deleted.Type                AS OldType,
+            deleted.StandardHours       AS OldStandardHours,
+            deleted.Base                AS OldBase,
+            deleted.Name                AS OldName,
+            deleted.EmplId              AS OldEmplId,
+            deleted.EmplStatus          AS OldEmplStatus,
+            deleted.Appt                AS OldAppt,
+            deleted.Age                 AS OldAge,
+            deleted.PosClassMax         AS OldPosClassMax,
+            deleted.JobClassMax         AS OldJobClassMax,
+            deleted.Annual              AS OldAnnual,
+            deleted.Abbr                AS OldAbbr,
+            deleted.AdminPlan           AS OldAdminPlan,
+            deleted.AMA                 AS OldAMA,
+            deleted.AMALimit            AS OldAMALimit,
+            deleted.CAD                 AS OldCAD,
+            deleted.CADLimit            AS OldCADLimit,
+            deleted.SPP                 AS OldSPP,
+            deleted.SPPLimit            AS OldSPPLimit,
+            deleted.TAJ                 AS OldTAJ,
+            deleted.TAJLimit            AS OldTAJLimit,
+            deleted.FutureTermDate      AS OldFutureTermDate,
+            deleted.FutureTermReason    AS OldFutureTermReason,
+            deleted.TAStatus            AS OldTAStatus,
+            deleted.TAStartDate         AS OldTAStartDate,
+            deleted.TAReturnDate        AS OldTAReturnDate,
+            deleted.TAReturnTo          AS OldTAReturnTo,
+            deleted.TAReturnBU          AS OldTAReturnBU,
+            deleted.TAReturnDeptId      AS OldTAReturnDeptId,
+            deleted.TAReturnJobCode     AS OldTAReturnJobCode,
+            deleted.TAReturnGrade       AS OldTAReturnGrade,
+            deleted.TAReturnPosition    AS OldTAReturnPosition,
+            deleted.TAReturnSupervisor  AS OldTAReturnSupervisor,
+            deleted.TAReturnAbbr        AS OldTAReturnAbbr,
+            deleted.LeaveReason         AS OldLeaveReason,
+            deleted.LeaveStart          AS OldLeaveStart,
+            deleted.LeaveReturn         AS OldLeaveReturn,
+            deleted.Q                   AS OldQ,
+            deleted.MaildropCity        AS OldMaildropCity,
 
-            -- New column values (all CAST to NVARCHAR(255))
-            CAST(inserted.Organization        AS NVARCHAR(255)) AS NewOrganization,
-            CAST(inserted.Level1              AS NVARCHAR(255)) AS NewLevel1,
-            CAST(inserted.Level2              AS NVARCHAR(255)) AS NewLevel2,
-            CAST(inserted.Level3              AS NVARCHAR(255)) AS NewLevel3,
-            CAST(inserted.PosBusinessUnit     AS NVARCHAR(255)) AS NewPosBusinessUnit,
-            CAST(inserted.PosBU               AS NVARCHAR(255)) AS NewPosBU,
-            CAST(inserted.PosDepartment       AS NVARCHAR(255)) AS NewPosDepartment,
-            CAST(inserted.PosDeptId           AS NVARCHAR(255)) AS NewPosDeptId,
-            CAST(inserted.Title               AS NVARCHAR(255)) AS NewTitle,
-            CAST(inserted.PosRole             AS NVARCHAR(255)) AS NewPosRole,
-            CAST(inserted.PosJobCode          AS NVARCHAR(255)) AS NewPosJobCode,
-            CAST(inserted.PosClassification   AS NVARCHAR(255)) AS NewPosClassification,
-            CAST(inserted.SupervisorPos       AS NVARCHAR(255)) AS NewSupervisorPos,
-            CAST(inserted.SupervisorName      AS NVARCHAR(255)) AS NewSupervisorName,
-            CAST(inserted.Direct              AS NVARCHAR(255)) AS NewDirect,
-            CAST(inserted.Indirect            AS NVARCHAR(255)) AS NewIndirect,
-            CAST(inserted.City                AS NVARCHAR(255)) AS NewCity,
-            CAST(inserted.Status              AS NVARCHAR(255)) AS NewStatus,
-            CAST(inserted.RT                  AS NVARCHAR(255)) AS NewRT,
-            CAST(inserted.FP                  AS NVARCHAR(255)) AS NewFP,
-            CAST(inserted.Budgetted           AS NVARCHAR(255)) AS NewBudgetted,
-            CAST(inserted.Empty               AS NVARCHAR(255)) AS NewEmpty,
-            CAST(inserted.Vacant              AS NVARCHAR(255)) AS NewVacant,
-            CAST(inserted.TrueVacancy         AS NVARCHAR(255)) AS NewTrueVacancy,
-            CAST(inserted.Future              AS NVARCHAR(255)) AS NewFuture,
-            CAST(inserted.LastFilled          AS NVARCHAR(255)) AS NewLastFilled,
-            CAST(inserted.LastFilledB         AS NVARCHAR(255)) AS NewLastFilledB,
-            CAST(inserted.LastFilledBase      AS NVARCHAR(255)) AS NewLastFilledBase,
-            CAST(inserted.EmplBU              AS NVARCHAR(255)) AS NewEmplBU,
-            CAST(inserted.EmplDeptId          AS NVARCHAR(255)) AS NewEmplDeptId,
-            CAST(inserted.JobRole             AS NVARCHAR(255)) AS NewJobRole,
-            CAST(inserted.EmplJobCode         AS NVARCHAR(255)) AS NewEmplJobCode,
-            CAST(inserted.EmplClassification  AS NVARCHAR(255)) AS NewEmplClassification,
-            CAST(inserted.Grade               AS NVARCHAR(255)) AS NewGrade,
-            CAST(inserted.Step                AS NVARCHAR(255)) AS NewStep,
-            CAST(inserted.SalaryType          AS NVARCHAR(255)) AS NewSalaryType,
-            CAST(inserted.Type                AS NVARCHAR(255)) AS NewType,
-            CAST(inserted.StandardHours       AS NVARCHAR(255)) AS NewStandardHours,
-            CAST(inserted.Base                AS NVARCHAR(255)) AS NewBase,
-            CAST(inserted.Name                AS NVARCHAR(255)) AS NewName,
-            CAST(inserted.EmplId              AS NVARCHAR(255)) AS NewEmplId,
-            CAST(inserted.EmplStatus          AS NVARCHAR(255)) AS NewEmplStatus,
-            CAST(inserted.Appt                AS NVARCHAR(255)) AS NewAppt,
-            CAST(inserted.Age                 AS NVARCHAR(255)) AS NewAge,
-            CAST(inserted.PosClassMax         AS NVARCHAR(255)) AS NewPosClassMax,
-            CAST(inserted.JobClassMax         AS NVARCHAR(255)) AS NewJobClassMax,
-            CAST(inserted.Annual              AS NVARCHAR(255)) AS NewAnnual,
-            CAST(inserted.Abbr                AS NVARCHAR(255)) AS NewAbbr,
-            CAST(inserted.AdminPlan           AS NVARCHAR(255)) AS NewAdminPlan,
-            CAST(inserted.AMA                 AS NVARCHAR(255)) AS NewAMA,
-            CAST(inserted.AMALimit            AS NVARCHAR(255)) AS NewAMALimit,
-            CAST(inserted.CAD                 AS NVARCHAR(255)) AS NewCAD,
-            CAST(inserted.CADLimit            AS NVARCHAR(255)) AS NewCADLimit,
-            CAST(inserted.SPP                 AS NVARCHAR(255)) AS NewSPP,
-            CAST(inserted.SPPLimit            AS NVARCHAR(255)) AS NewSPPLimit,
-            CAST(inserted.TAJ                 AS NVARCHAR(255)) AS NewTAJ,
-            CAST(inserted.TAJLimit            AS NVARCHAR(255)) AS NewTAJLimit,
-            CAST(inserted.FutureTermDate      AS NVARCHAR(255)) AS NewFutureTermDate,
-            CAST(inserted.FutureTermReason    AS NVARCHAR(255)) AS NewFutureTermReason,
-            CAST(inserted.TAStatus            AS NVARCHAR(255)) AS NewTAStatus,
-            CAST(inserted.TAStartDate         AS NVARCHAR(255)) AS NewTAStartDate,
-            CAST(inserted.TAReturnDate        AS NVARCHAR(255)) AS NewTAReturnDate,
-            CAST(inserted.TAReturnTo          AS NVARCHAR(255)) AS NewTAReturnTo,
-            CAST(inserted.TAReturnBU          AS NVARCHAR(255)) AS NewTAReturnBU,
-            CAST(inserted.TAReturnDeptId     AS NVARCHAR(255)) AS NewTAReturnDeptId,
-            CAST(inserted.TAReturnJobCode     AS NVARCHAR(255)) AS NewTAReturnJobCode,
-            CAST(inserted.TAReturnGrade       AS NVARCHAR(255)) AS NewTAReturnGrade,
-            CAST(inserted.TAReturnPosition    AS NVARCHAR(255)) AS NewTAReturnPosition,
-            CAST(inserted.TAReturnSupervisor  AS NVARCHAR(255)) AS NewTAReturnSupervisor,
-            CAST(inserted.TAReturnAbbr        AS NVARCHAR(255)) AS NewTAReturnAbbr,
-            CAST(inserted.LeaveReason         AS NVARCHAR(255)) AS NewLeaveReason,
-            CAST(inserted.LeaveStart          AS NVARCHAR(255)) AS NewLeaveStart,
-            CAST(inserted.LeaveReturn         AS NVARCHAR(255)) AS NewLeaveReturn,
-            CAST(inserted.Q                   AS NVARCHAR(255)) AS NewQ,
-            CAST(inserted.MaildropCity        AS NVARCHAR(255)) AS NewMaildropCity
+              -- New column values (ALL columns kept for audit trail)
+            inserted.Organization        AS NewOrganization,
+            inserted.Level1              AS NewLevel1,
+            inserted.Level2              AS NewLevel2,
+            inserted.Level3              AS NewLevel3,
+            inserted.PosBusinessUnit     AS NewPosBusinessUnit,
+            inserted.PosBU               AS NewPosBU,
+            inserted.PosDepartment       AS NewPosDepartment,
+            inserted.PosDeptId           AS NewPosDeptId,
+            inserted.Title               AS NewTitle,
+            inserted.PosRole             AS NewPosRole,
+            inserted.PosJobCode          AS NewPosJobCode,
+            inserted.PosClassification   AS NewPosClassification,
+            inserted.SupervisorPos       AS NewSupervisorPos,
+            inserted.SupervisorName      AS NewSupervisorName,
+            inserted.Direct              AS NewDirect,
+            inserted.Indirect            AS NewIndirect,
+            inserted.City                AS NewCity,
+            inserted.Status              AS NewStatus,
+            inserted.RT                  AS NewRT,
+            inserted.FP                  AS NewFP,
+            inserted.Budgetted           AS NewBudgetted,
+            inserted.Empty               AS NewEmpty,
+            inserted.Vacant              AS NewVacant,
+            inserted.TrueVacancy         AS NewTrueVacancy,
+            inserted.Future              AS NewFuture,
+            inserted.LastFilled          AS NewLastFilled,
+            inserted.LastFilledB         AS NewLastFilledB,
+            inserted.LastFilledBase      AS NewLastFilledBase,
+            inserted.EmplBU              AS NewEmplBU,
+            inserted.EmplDeptId          AS NewEmplDeptId,
+            inserted.JobRole             AS NewJobRole,
+            inserted.EmplJobCode         AS NewEmplJobCode,
+            inserted.EmplClassification  AS NewEmplClassification,
+            inserted.Grade               AS NewGrade,
+            inserted.Step                AS NewStep,
+            inserted.SalaryType          AS NewSalaryType,
+            inserted.Type                AS NewType,
+            inserted.StandardHours       AS NewStandardHours,
+            inserted.Base                AS NewBase,
+            inserted.Name                AS NewName,
+            inserted.EmplId              AS NewEmplId,
+            inserted.EmplStatus          AS NewEmplStatus,
+            inserted.Appt                AS NewAppt,
+            inserted.Age                 AS NewAge,
+            inserted.PosClassMax         AS NewPosClassMax,
+            inserted.JobClassMax         AS NewJobClassMax,
+            inserted.Annual              AS NewAnnual,
+            inserted.Abbr                AS NewAbbr,
+            inserted.AdminPlan           AS NewAdminPlan,
+            inserted.AMA                 AS NewAMA,
+            inserted.AMALimit            AS NewAMALimit,
+            inserted.CAD                 AS NewCAD,
+            inserted.CADLimit            AS NewCADLimit,
+            inserted.SPP                 AS NewSPP,
+            inserted.SPPLimit            AS NewSPPLimit,
+            inserted.TAJ                 AS NewTAJ,
+            inserted.TAJLimit            AS NewTAJLimit,
+            inserted.FutureTermDate      AS NewFutureTermDate,
+            inserted.FutureTermReason    AS NewFutureTermReason,
+            inserted.TAStatus            AS NewTAStatus,
+            inserted.TAStartDate         AS NewTAStartDate,
+            inserted.TAReturnDate        AS NewTAReturnDate,
+            inserted.TAReturnTo          AS NewTAReturnTo,
+            inserted.TAReturnBU          AS NewTAReturnBU,
+            inserted.TAReturnDeptId      AS NewTAReturnDeptId,
+            inserted.TAReturnJobCode     AS NewTAReturnJobCode,
+            inserted.TAReturnGrade       AS NewTAReturnGrade,
+            inserted.TAReturnPosition    AS NewTAReturnPosition,
+            inserted.TAReturnSupervisor  AS NewTAReturnSupervisor,
+            inserted.TAReturnAbbr        AS NewTAReturnAbbr,
+            inserted.LeaveReason         AS NewLeaveReason,
+            inserted.LeaveStart          AS NewLeaveStart,
+            inserted.LeaveReturn         AS NewLeaveReturn,
+            inserted.Q                   AS NewQ,
+            inserted.MaildropCity        AS NewMaildropCity
 
-        INTO dbo.Peoplesoft_SO001HRORG_Audit
+          INTO dbo.Peoplesoft_SO001HRORG_Audit
         (
             RunId, ActionType, PosPosition, EmplId,
             OldRowHash, NewRowHash,
@@ -621,4 +618,3 @@ BEGIN
         THROW;
     END CATCH
 END
-GO
