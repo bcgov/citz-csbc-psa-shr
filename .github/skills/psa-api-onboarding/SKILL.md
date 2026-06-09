@@ -121,6 +121,16 @@ row binding, DB connection params, or banner format. See
 - [ ] R script structure matches reference (diff against `psa_so001hrorg_etl.R`)
 - [ ] Naming conventions, no credentials in code
 
+## Step 10: Post-Deploy Verification (CRITICAL — NEW)
+
+After deploying a new API or modifying a MERGE proc:
+
+- [ ] Run ETL twice in succession
+- [ ] Run 1: expect all INSERTs (or INSERTs + real changes)
+- [ ] Run 2: expect **0 updates** (proves stability)
+- [ ] If Run 2 shows mass updates → diagnose using the Debugging Playbook below
+- [ ] Verify MERGE proc is actually deployed: `SELECT OBJECT_DEFINITION(OBJECT_ID('dbo.usp_Merge_PeopleSoft_<ApiCode>'));`
+
 ---
 
 # Known API Patterns (Lessons Learned)
@@ -156,6 +166,9 @@ entities. The pipeline must handle key discovery, dedup, and flexible staging.
 - MERGE ON: `tgt.EmplId = src.EmplId` (no ISNULL needed)
 - Nullable `{}` fields handled by `normalize_cell()`
 - Dropped reason: `'NULL_EMPLID'`
+- **Converted to RowHash pattern** for consistency and easier maintenance.
+  Excluded from hash: `Age`, `AgeGroup1`, `AgeGroup2`, `Generation`,
+  `EligibleForPension`, `EligibleForUnreducedPension` (all derived/threshold).
 
 ## API 4: Datamart_CITZ_API_vw_Hires_Exits_and_Internal_Movements_CITZ (HEM)
 
@@ -232,7 +245,7 @@ reference and swapping only API-specific pieces.
 2. Mandatory Script Structure table listing every locked-in choice
 3. Pattern Consistency Rule in [copilot-instructions.md](../../copilot-instructions.md)
 
-**Prevention for APIs 6+:**
+**Prevention for APIs 7+:**
 - Always open `psa_so001hrorg_etl.R` BEFORE generating.
 - Diff the new script against it before declaring done.
 - Run ASCII verification before commit.
@@ -302,74 +315,198 @@ accept any value the source produces.
 
 ---
 
-## API 7 (SHR010HRORG): Continuously-Computed Columns in WHEN MATCHED (CRITICAL)
+## Continuously-Computed Columns in WHEN MATCHED (CRITICAL)
 
-**Symptom:** Run 1 (2026-05-31) produced 2764 INSERTs, 0 UPDATEs (correct —
-first load). Run 2 (2026-06-02) produced 2 INSERTs, 2759 UPDATEs, 5 soft
-deletes. Expected: near-zero UPDATEs (no real data changed).
+**Symptom:** Near-100% false UPDATEs every run despite no real data changes.
 
-**Root cause:** `Age DECIMAL(8,4)` was included in the `WHEN MATCHED`
-comparison. PeopleSoft computes `Age` continuously as
-`(AsOfDate - Birthdate) / 365.25`. Since `AsOfDate` increments daily, `Age`
-changes by approximately 1/365.25 per day for every employee. Over 2 days,
-every employee's `Age` differs by ~0.0055. The DECIMAL comparison fired for
-every matched row, producing 100% false UPDATE detection.
+**Root cause:** Columns computed from `AsOfDate` or current date drift daily.
+Including them in change detection (`WHEN MATCHED` or `RowHash`) guarantees
+false positives.
 
-**Why it looks correct but isn't:** `Age` uses a native DECIMAL-to-DECIMAL
-comparison (`ISNULL(tgt.Age, -1) <> ISNULL(src.Age, -1)`), which is the
-correct type pattern. The bug is not in the comparison syntax -- it is in
-including a column whose value is mathematically guaranteed to change on every
-run. The same root cause as `AsOfDate`.
-
-**Fix applied to `usp_Merge_PeopleSoft_SHR010HRORG`:**
-1. Removed `OR ISNULL(tgt.Age, -1) <> ISNULL(src.Age, -1)` from `WHEN MATCHED`.
-2. Removed `Age` from both `OldRowHash` and `NewRowHash` `HASHBYTES` calls.
-3. Kept `Age` in `UPDATE SET` (stays current whenever a real change fires).
-4. Kept `OldAge` / `NewAge` in `OUTPUT` (informational context in audit).
-5. Also fixed 5 nullable DATE columns that used bare `<>` (misses NULL-to-value
-   transitions) and 3 that used `CONVERT(NVARCHAR(10), col, 23)` (unnecessary)
-   -- all replaced with `ISNULL(tgt.Col, '1900-01-01') <> ISNULL(src.Col, '1900-01-01')`.
-
-**Audit across all 6 APIs (performed after SHR010HRORG fix):**
-Same root cause found in 3 other procs. All fixed identically (removed from
-WHEN MATCHED and HASHBYTES; kept in UPDATE SET and OUTPUT):
+**Complete exclusion registry (all 6 APIs audited):**
 
 | API | Column | Type | Computed from |
 |---|---|---|---|
-| SO001HRORG | `Age` | `INT` | `AsOfDate − Birthdate` |
-| EPC | `YearsEmpty` | `DECIMAL(10,4)` | `AsOfDate − EmptyEffDt` |
-| TIP | `DaysInPosition` | `INT` | `AsOfDate − FirstDateInPosition` (active rows) |
-| TIP | `YearsInPosition` | `DECIMAL(10,4)` | `DaysInPosition / 365.25` (active rows) |
-| TIP | `AccumulatedYearsInPositions` | `DECIMAL(10,4)` | includes current active position |
-| HEM | `EstimatedYrsOfService` | `DECIMAL` | `AsOfDate − FirstDateOfService` |
-| HEM | `EstimatedYearsOfService` | `DECIMAL` | same |
-| HEM | `EstimatedYearsOfServiceStr` | string | string form of above |
-| HEM | `NewEstimatedYearsInOrg` (+`Str`) | `DECIMAL` / string | `AsOfDate − NewFirstDateInOrg` |
-| HEM | `NewEstimatedYearsInPos` (+`Str`) | `DECIMAL` / string | `AsOfDate − NewFirstDateInPosition` |
-| HEM | `PriorEstimatedYearsInOrg` (+`Str`) | `DECIMAL` / string | `AsOfDate − PriorFirstDateInOrg` |
-| HEM | `PriorEstimatedYearsInPos` (+`Str`) | `DECIMAL` / string | `AsOfDate − PriorFirstDateInPosition` |
+| SO001HRORG | `Age` | `INT` | `AsOfDate - Birthdate` |
+| SHR010HRORG | `Age` | `DECIMAL(8,4)` | `AsOfDate - Birthdate` |
+| SHR010HRORG | `AgeGroup1` | `NVARCHAR` | Derived from `Age` |
+| SHR010HRORG | `AgeGroup2` | `NVARCHAR` | Derived from `Age` |
+| SHR010HRORG | `Generation` | `NVARCHAR` | Derived from birth year |
+| SHR010HRORG | `EligibleForPension` | `NVARCHAR` | Threshold from `Age` + service |
+| SHR010HRORG | `EligibleForUnreducedPension` | `NVARCHAR` | Threshold from `Age` + service |
+| EPC | `YearsEmpty` | `DECIMAL(10,4)` | `AsOfDate - EmptyEffDt` |
+| TIP | `DaysInPosition` | `INT` | `AsOfDate - FirstDateInPosition` |
+| TIP | `YearsInPosition` | `DECIMAL(10,4)` | `DaysInPosition / 365.25` |
+| TIP | `AccumulatedYearsInPositions` | `DECIMAL(10,4)` | Cumulative to `AsOfDate` |
+| TIP | `AgeAtEntry` | `DECIMAL(10,4)` | Recomputed as of `AsOfDate` each run |
+| TIP | `AgeAtExit` | `DECIMAL(10,4)` | Recomputed as of `AsOfDate` each run |
+| HEM | `EstimatedYrsOfService` | `DECIMAL` | `AsOfDate - FirstDateOfService` |
+| HEM | `EstimatedYearsOfService` | `DECIMAL` | Same |
+| HEM | `EstimatedYearsOfServiceStr` | `NVARCHAR` | String form of above |
+| HEM | `NewEstimatedYearsInOrg` (+`Str`) | `DECIMAL`/`NVARCHAR` | `AsOfDate - NewFirstDateInOrg` |
+| HEM | `NewEstimatedYearsInPos` (+`Str`) | `DECIMAL`/`NVARCHAR` | `AsOfDate - NewFirstDateInPosition` |
+| HEM | `PriorEstimatedYearsInOrg` (+`Str`) | `DECIMAL`/`NVARCHAR` | `AsOfDate - PriorFirstDateInOrg` |
+| HEM | `PriorEstimatedYearsInPos` (+`Str`) | `DECIMAL`/`NVARCHAR` | `AsOfDate - PriorFirstDateInPosition` |
 
-HEM evidence: run on 2026-06-02 produced 7935 UPDATEs / 10556 active rows (~75%).
-After excluding the 11 `Estimated*` columns from the `_RowHash` CTE, only true
-data changes trigger UPDATEs. The 11 columns are still propagated to the target
-via `UPDATE SET` / `INSERT` so reported values stay current.
+**Rule for all columns:** EXCLUDE from detection → KEEP in UPDATE SET / INSERT / audit.
 
-Initial belief that `HEM.Estimated*` was snapshotted to `EffDt` was WRONG \u2014
-the API recomputes against the current `AsOfDate` on every run.
-
-Safe (truly snapshotted to a historical date, NOT continuously computed):
-`TIP.AgeAtEntry`, `TIP.AgeAtExit`.
+**Red-flag column name patterns (auto-exclude from detection):**
+`Age*` (unless `*At<Event>` snapshotted), `Years*`, `Days*`, `Months*`,
+`Duration*`, `TimeIn*`, `*OfService`, `*Group*` (when derived from age),
+`Eligible*` (when threshold-based), `Generation`, `Accumulated*`, `Estimated*`.
 
 **Prevention for APIs 7+:**
-- Before writing WHEN MATCHED, classify every non-STRING column:
-  - Is it computed from `AsOfDate` or the current run date? → EXCLUDE.
-  - Is it snapshotted to a historical event date? → INCLUDE.
-- Common red-flag names: `Age*` (unless `*At<Event>`), `Years*`, `Days*`,
-  `Months*`, `Duration*`, `TimeIn*`, `*OfService` (unless snapshotted).
-- Conditional-active red flag: columns that only change while an event is
-  open (e.g., `ExitDate IS NULL`) \u2014 same problem, only on the active subset.
-- Use the rule codified in `.github/instructions/sql.instructions.md`
-  (WHEN MATCHED Comparison Rules → Continuously-computed columns).
+- Before writing WHEN MATCHED, classify every column:
+  - Computed from `AsOfDate` or current date? → EXCLUDE from detection.
+  - Snapshotted to a historical event date? → INCLUDE.
+  - Derived from an excluded column (groups, thresholds)? → EXCLUDE.
+- Add comment block in MERGE proc listing excluded columns and reason.
+
+---
+
+## RowHash Rebase Rule (CRITICAL — applies to all RowHash APIs)
+
+**Symptom:** After modifying the HASHBYTES column list in a MERGE proc,
+the next run detects every row as changed (mass false UPDATEs) even though
+no actual data changed.
+
+**Root cause:** Stored `RowHash` in target was computed with the OLD formula.
+New CTE computes hash with the NEW formula. Old ≠ New for every row.
+
+**Proven on:** HEM (removed `Estimated*` columns from hash → 7980 false
+updates), SHR010HRORG (converted to RowHash → all rows flagged).
+
+**Mandatory fix after ANY hash formula change:**
+
+```sql
+-- Rebase: recompute RowHash for all rows using the CURRENT formula
+UPDATE tgt
+SET RowHash = HASHBYTES('SHA2_256',
+    CAST(CONCAT_WS('|',
+        -- EXACT same column list as the CTE in the MERGE proc
+        COALESCE(tgt.Col1, ''),
+        COALESCE(tgt.Col2, ''),
+        ...
+    ) AS NVARCHAR(MAX))
+)
+FROM dbo.Peoplesoft_<ApiCode> tgt;
+```
+
+**Prevention for APIs 7+:**
+- After ANY change to HASHBYTES column list: ALWAYS rebase stored RowHash.
+- After adding `RowHash VARBINARY(32)` to an existing table: ALWAYS
+  initialize with the rebase UPDATE before running the MERGE proc.
+- Include rebase script in the API folder: `ddl/06_rebase_rowhash.sql`.
+
+---
+
+## Initial Load Alignment Verification (CRITICAL)
+
+**Symptom (EPC):** ~1200 false UPDATEs every run. All column-level
+diagnostics showed 0 diff between staging and target. Audit data revealed
+Old values stored in wrong columns (e.g., `OldEmptyPosition` contained a
+Location value, `OldIncumbents` contained `PositionHasBaseIncumbent`).
+
+**Root cause:** The initial bulk load (before the MERGE proc existed) wrote
+data into shifted column positions — likely a positional INSERT or an R
+script that wrote dataframe columns in wrong order. The MERGE proc uses
+named columns (correct), but the target data was already corrupted.
+
+**Why diagnostics were misleading:** By the time staging vs target diffs
+were checked, the MERGE had already corrected target values. But the next
+run's staging refresh re-triggered the same mismatches, creating an
+infinite update cycle.
+
+**Fix:** TRUNCATE target + TRUNCATE audit + re-run ETL (clean INSERT via
+the named-column MERGE proc).
+
+**Prevention for APIs 7+:**
+- NEVER use positional bulk INSERT for initial loads.
+- ALWAYS verify initial load with the **two-run test:**
+  1. Run ETL → expect all INSERTs
+  2. Run ETL again immediately → expect **0 updates**
+  3. If Run 2 shows mass updates → initial load is misaligned → TRUNCATE + reload
+- Add the two-run test to Step 10 of the onboarding procedure.
+
+---
+
+## Debugging False Updates — Standard Playbook
+
+When an API shows unexpectedly high UPDATE counts, follow this sequence:
+
+### Phase 1: Audit Change Frequency (fastest — use existing audit data)
+
+```sql
+-- Count how many UPDATE rows changed each column (one-row result)
+SELECT COUNT(*) AS TotalUpdates,
+    SUM(CASE WHEN ISNULL(CAST(a.OldCol AS NVARCHAR(255)),'')
+             <> ISNULL(CAST(a.NewCol AS NVARCHAR(255)),'')
+         THEN 1 ELSE 0 END) AS Col_Chg,
+    -- repeat for every audited column
+FROM dbo.Peoplesoft_<ApiCode>_Audit a
+WHERE a.RunId = @RunId AND a.ActionType = 'UPDATE';
+```
+
+**Interpretation:**
+
+| Pattern | Diagnosis | Fix |
+|---------|-----------|-----|
+| One column ≈ TotalUpdates | **Drift column** | Exclude from detection |
+| ALL columns ≈ TotalUpdates | **Initial load misalignment** | TRUNCATE + reload |
+| All columns = 0 | **RowHash mismatch** | Rebase RowHash |
+| Mix of real and drift | Multiple issues | Fix drift first, then recheck |
+
+### Phase 2: Staging vs Target Diff (if audit is inconclusive)
+
+```sql
+-- Count mismatches per column across all matched rows
+SELECT COUNT(*) AS TotalMatched,
+    SUM(CASE WHEN ISNULL(CAST(t.Col AS NVARCHAR(255)),'')
+             <> ISNULL(CAST(s.Col AS NVARCHAR(255)),'')
+         THEN 1 ELSE 0 END) AS Col_Diff
+FROM dbo.Peoplesoft_<ApiCode> t
+JOIN dbo.Stg_Peoplesoft_<ApiCode> s ON t.<Key> = s.<Key>
+WHERE t.IsActive = 1;
+```
+
+**Note:** Run this BEFORE re-running ETL. After MERGE runs, target matches
+staging, masking the original differences.
+
+### Phase 3: Verify Proc Deployment
+
+```sql
+SELECT OBJECT_DEFINITION(OBJECT_ID('dbo.usp_Merge_PeopleSoft_<ApiCode>'));
+```
+
+Check that excluded columns are actually absent from `WHEN MATCHED`.
+(TIP lesson: proc was fixed in source but never deployed to server.)
+
+### Phase 4: Spot-Check Audit Values (for misalignment detection)
+
+```sql
+-- Pick one row, compare Old/New values against known staging data
+SELECT a.OldCol1, a.NewCol1, a.OldCol2, a.NewCol2, ...
+FROM dbo.Peoplesoft_<ApiCode>_Audit a
+WHERE a.<Key> = '<known_value>' AND a.ActionType = 'UPDATE'
+ORDER BY a.AuditDtmUtc DESC;
+```
+
+If Old values contain data from wrong columns → initial load misalignment.
+
+---
+
+## Deployment Checklist (prevents "forgot to deploy" issues)
+
+After modifying any MERGE proc:
+
+- [ ] Run `CREATE OR ALTER PROCEDURE` in SSMS
+- [ ] Verify deployment: `SELECT OBJECT_DEFINITION(OBJECT_ID('dbo.usp_...'));`
+- [ ] Look for your specific change (comment, excluded column, etc.)
+- [ ] Delete bad audit runs for the affected API
+- [ ] Re-run ETL
+- [ ] Verify: updates should drop to near-zero (or expected real changes only)
+- [ ] If RowHash formula changed: run rebase UPDATE first
+
 ---
 
 ## Model Selection Guide
@@ -380,24 +517,22 @@ This guide helps the human operator choose the correct model in VS Code Copilot 
 
 | Task | Recommended Model | Reason |
 |------|------------------|--------|
-| Single API onboarding (≤ 30 files) | Auto or Sonnet | Fast, efficient, follows patterns well |
-| Multi-API batch onboarding (≥ 2 APIs / ≥ 60 files) | Opus (manual select) | Better at maintaining consistency across large outputs |
+| Single API onboarding (<= 30 files) | Auto or Sonnet | Fast, efficient, follows patterns well |
+| Multi-API batch onboarding (>= 2 APIs / >= 60 files) | Opus (manual select) | Better at maintaining consistency across large outputs |
 | Schema/key discovery analysis | Opus (manual select) | Requires deeper reasoning and pattern recognition |
 | Complex merge logic / composite key design | Opus (manual select) | High reasoning complexity |
 | Debugging specific SQL or R errors | Auto or Sonnet | Focused, fast response |
 | Reporting SQL generation | Auto or Sonnet | Repetitive pattern-based work |
 | Full-file rewrites (large SQL/R scripts) | Opus (manual select) | Avoids truncation / output limits |
 | Documentation (MD updates) | Auto or Sonnet | Both perform well |
+| False-update debugging | Auto or Sonnet | Pattern-based; use Playbook above |
 
 ### Important Notes
 
 - Auto model selection does NOT route to Opus-class models.
-- Auto optimizes for cost, speed, and availability — not maximum reasoning capability.
+- Auto optimizes for cost, speed, and availability -- not maximum reasoning capability.
 - Opus must be selected manually from the model picker when needed.
-- Use Opus for:
-  - Large outputs
-  - Cross-file consistency
-  - Architecture decisions
+- Use Opus for large outputs, cross-file consistency, architecture decisions.
 - Use Auto for default workflows (recommended baseline).
 
 ### Operational Rule
@@ -409,6 +544,7 @@ Switch to Opus manually when:
 - The problem requires deeper reasoning
 - You observe pattern drift or inconsistent outputs
 - You hit response length limits
+
 ## Public Repo Sanitization Rule (CRITICAL)
 
 This repository is public. Sample/example values in any committed artifact
